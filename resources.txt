@@ -1,0 +1,2 @@
+https://www.geeksforgeeks.org/xv6-operating-system-add-a-user-program/
+https://www.geeksforgeeks.org/xv6-operating-system-adding-a-new-system-call/ 
