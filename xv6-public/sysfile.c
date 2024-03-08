@@ -17,6 +17,7 @@
 #include "fcntl.h"
 #include "wmap.h"
 #include "memlayout.h"
+#include "math.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -454,13 +455,16 @@ sys_wmap(void){
   int length;
   int flags;
   int fd; // ignore in case of Map anonymous
-
+  
   // invalid args?
-  if (argint(0, (int*)&addr) < 0 || argint(1, &length) <= 0 || argint(2, &flags) < 0 || argint(3, &fd) < 0) {
+  if (argint(0, (int*)&addr) < 0  || (argint(1, &length) < 1) || (argint(2, &flags) < 0)){ // || argint(3, &fd) < 0) {
+    cprintf("error with args: addr: %d, length %d, flags: %d\n", addr, length, flags);
+    cprintf("%d, %d, %d\n", MAP_ANONYMOUS, MAP_FIXED, MAP_PRIVATE);
     return FAILED;
   }
+  argint(3, &fd);
   // map memory
-  if (flags & (MAP_ANONYMOUS | MAP_FIXED | MAP_PRIVATE)){
+  if ((flags & MAP_ANONYMOUS) != 0){
     // check if addr is page addressable
     // check if addr is in bounds
     // check if requested Addr is available
@@ -468,10 +472,17 @@ sys_wmap(void){
       return FAILED;
     }
     struct proc *p = myproc();
-    char* mem = kalloc();
-    mappages(p->pgdir, (void*) 0x60000000, 4096, V2P(mem), PTE_W | PTE_U);
-    mem = kalloc();
-    mappages(p->pgdir, (void*) 0x60001000, 4096, V2P(mem), PTE_W | PTE_U);
+    int pagesNeeded = PGROUNDUP(length) / PGSIZE;
+    char* mem;
+    for (int i = 0; i < pagesNeeded; i++){
+      mem = kalloc();
+      mappages(p->pgdir, (void*) addr, PGSIZE, V2P(mem), PTE_W | PTE_U);
+      addr = addr + PGSIZE; // increment va to map to physical
+    }
+    return pagesNeeded;
+    
+    // mem = kalloc();
+    // mappages(p->pgdir, (void*) 0x60001000, 4096, V2P(mem), PTE_W | PTE_U);
     // need data structure for storing mapped information, can store in PCB?
     // mappages in vm.c is useful
     // kalloc helps u map virtual to physical page
