@@ -449,22 +449,21 @@ sys_pipe(void)
 int
 sys_wmap(void){
   // uint wmap(uint addr, int length, int flags, int fd);
-  uint addr;
+  uint addr; // VA we MUST use for the mapping
   int length;
   int flags;
-  int fd;
-
-  argint(0, (int*)&addr);
-  argint(1, &length);
-  argint(2, &flags);
-  argint(3, &fd);
+  int fd; // ignore in case of Map anonymous
 
   // invalid args?
-  if (argint(0, (int*)&addr) < 0 || argint(1, &length) < 0 || argint(2, &flags) < 0 || argint(3, &fd) < 0) {
+  if (argint(0, (int*)&addr) < 0 || argint(1, &length) <= 0 || argint(2, &flags) < 0 || argint(3, &fd) < 0) {
     return FAILED;
   }
   // map memory
-  if (1){
+  if (flags & (MAP_ANONYMOUS | MAP_FIXED | MAP_PRIVATE)){
+    // check if requested Addr is available
+    // check if addr is page addressable
+    // check if addr is in bounds
+    // 
     return SUCCESS;
   }
   return FAILED;
