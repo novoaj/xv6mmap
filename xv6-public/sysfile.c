@@ -16,6 +16,7 @@
 #include "file.h"
 #include "fcntl.h"
 #include "wmap.h"
+#include "memlayout.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -460,10 +461,20 @@ sys_wmap(void){
   }
   // map memory
   if (flags & (MAP_ANONYMOUS | MAP_FIXED | MAP_PRIVATE)){
-    // check if requested Addr is available
     // check if addr is page addressable
     // check if addr is in bounds
-    // 
+    // check if requested Addr is available
+    if (addr % PGSIZE != 0){
+      return FAILED;
+    }
+    struct proc *p = myproc();
+    char* mem = kalloc();
+    mappages(p->pgdir, (void*) 0x60000000, 4096, V2P(mem), PTE_W | PTE_U);
+    mem = kalloc();
+    mappages(p->pgdir, (void*) 0x60001000, 4096, V2P(mem), PTE_W | PTE_U);
+    // need data structure for storing mapped information, can store in PCB?
+    // mappages in vm.c is useful
+    // kalloc helps u map virtual to physical page
     return SUCCESS;
   }
   return FAILED;
