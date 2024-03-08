@@ -443,7 +443,9 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
-
+/*
+ * P4 syscall functions
+ */
 int
 sys_wmap(void){
   // uint wmap(uint addr, int length, int flags, int fd);
@@ -457,6 +459,10 @@ sys_wmap(void){
   argint(2, &flags);
   argint(3, &fd);
 
+  // invalid args?
+  if (argint(0, (int*)&addr) < 0 || argint(1, &length) < 0 || argint(2, &flags) < 0 || argint(3, &fd) < 0) {
+    return FAILED;
+  }
   // map memory
   if (1){
     return SUCCESS;
