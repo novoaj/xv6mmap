@@ -15,6 +15,7 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "wmap.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -445,5 +446,20 @@ sys_pipe(void)
 
 int
 sys_wmap(void){
-  return -1;
+  // uint wmap(uint addr, int length, int flags, int fd);
+  uint addr;
+  int length;
+  int flags;
+  int fd;
+
+  argint(0, (int*)&addr);
+  argint(1, &length);
+  argint(2, &flags);
+  argint(3, &fd);
+
+  // map memory
+  if (1){
+    return SUCCESS;
+  }
+  return FAILED;
 }
