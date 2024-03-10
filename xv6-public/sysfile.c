@@ -478,6 +478,42 @@ void sort_mem_blocks(struct proc *p) {
     p->arr[i] = sorted;
   }
 }
+
+/* Insertion Logic
+* Needs to interact with the sort_mem_block function
+* Will perform the insertion
+*/
+int insert_mapping(struct mapping* arr[], struct mapping* new_mapping, int size) {
+    int i = size - 1; // Start from the last element of the array
+
+    // Check if the array is already full
+    if (arr[size - 1] != 0) {
+        return FAILED; // Array is full, return error code
+    }
+
+    // Find the correct position to insert the new mapping
+    while (i >= 0 && arr[i] != 0 && arr[i]->start > new_mapping->start) {
+        // Check if the new mapping fits between the end of the previous mapping and the start of the next mapping
+        if (i > 0 && arr[i - 1] != 0 && (arr[i - 1]->end + 1) >= new_mapping->start && arr[i]->start <= (new_mapping->start + new_mapping->length)) {
+            // Insert the new mapping at the correct position
+            arr[i + 1] = new_mapping;
+            return new_mapping->start;
+        }
+        arr[i + 1] = arr[i]; // Move elements greater than new_mapping to the right
+        i--;
+    }
+
+    // Insert the new mapping at the correct position
+    arr[i + 1] = new_mapping;
+
+    // Check if the new mapping goes beyond MAX_ADDR
+    if (new_mapping->start + new_mapping->length > MAX_ADDR) {
+        return FAILED; // Return error code
+    }
+
+    return new_mapping->start;
+}
+
 /*
  * P4 syscall functions
  */
