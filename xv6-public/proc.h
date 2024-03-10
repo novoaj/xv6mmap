@@ -34,6 +34,14 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+// mapping struct
+struct mem_block {
+    uint start; // Start address of the block
+    uint end;   // End address of the block
+    struct mem_block *prev; // Pointer to the previous block
+    struct mem_block *next; // Pointer to the next block
+};
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -47,8 +55,11 @@ struct proc {
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
   struct file *ofile[NOFILE];  // Open files
-  struct inode *cwd;           // Current directory
+  struct inode *cwd;           // Current dir ectory
   char name[16];               // Process name (debugging)
+  
+  struct mem_block* arr[16];   // our memory mapping array
+
 };
 
 // Process memory is laid out contiguously, low addresses first:

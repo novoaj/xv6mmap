@@ -15,10 +15,10 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+
 #include "wmap.h"
 #include "memlayout.h"
-#include "math.h"
-
+#include "memStruct.h"
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -445,6 +445,10 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+/*
+ * memory linked list functions
+ */
+
 /*
  * P4 syscall functions
  */
