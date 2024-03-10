@@ -35,7 +35,7 @@ struct context {
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // mapping struct
-struct mem_block {
+typedef struct mem_block {
     uint start; // Start address of the block
     uint end;   // End address of the block
     int flags;

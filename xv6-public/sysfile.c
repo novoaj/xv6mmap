@@ -18,7 +18,6 @@
 
 #include "wmap.h"
 #include "memlayout.h"
-#include "memStruct.h"
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
