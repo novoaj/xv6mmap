@@ -38,9 +38,10 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct mem_block {
     uint start; // Start address of the block
     uint end;   // End address of the block
+    int flags;
     struct mem_block *prev; // Pointer to the previous block
     struct mem_block *next; // Pointer to the next block
-};
+} mem_block;
 
 // Per-process state
 struct proc {
@@ -57,7 +58,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current dir ectory
   char name[16];               // Process name (debugging)
-  
+
   struct mem_block* arr[16];   // our memory mapping array
 
 };
