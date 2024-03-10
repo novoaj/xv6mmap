@@ -468,6 +468,7 @@ sys_wmap(void){
   // invalid args?
   if (argint(0, (int*)&addr) < 0  || (argint(1, &length) < 1) || (argint(2, &flags) < 0)) { //|| argint(3, &fd) < 0) {
     cprintf("error with args: addr: %d, length %d, flags: %d\n", addr, length, flags);
+  }
   if ((argint(0, (int*)&addr) < 0)  || (argint(1, &length) < 1)){ // || argint(3, &fd) < 0) {
     // uint uflags = (uint) flags;
     // cprintf("uflags: %d\n", uflags);
