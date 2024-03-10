@@ -449,6 +449,35 @@ sys_pipe(void)
  */
 // insertion sort? sort by start addr, would help us when inserting new addrs
 // https://www.geeksforgeeks.org/insertion-sort/
+void sort_mem_blocks(struct proc *p) {
+  const int ARR_SIZE = 16;
+
+  struct mem_block *sorted;
+
+  for (int i = 0; i < ARR_SIZE; i++) {
+    if (p->arr[i]!= 0){
+      continue;
+    }
+    struct mem_block *current = p->arr[i];
+    p->arr[i] = p->arr[i]->next;
+
+    if (sorted == NULL || (current->end - current->start) <= (sorted->end - sorted->start)) {
+      current->next = sorted;
+      sorted = current;
+    } else {
+      struct mem_block *temp = sorted;
+
+      while (temp->next != NULL && (temp->next->end - temp->next->start) < (current->end - current->start)) {
+        temp = temp->next;
+      }
+
+      current->next = temp->next;
+      temp->next = current;
+
+    }
+    p->arr[i] = sorted;
+  }
+}
 /*
  * P4 syscall functions
  */
