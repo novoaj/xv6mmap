@@ -452,7 +452,7 @@ sys_pipe(void)
 void sort_mem_blocks(struct proc *p) {
   const int ARR_SIZE = 16;
 
-  struct mem_block *sorted;
+  struct mem_block *sorted = 0;
 
   for (int i = 0; i < ARR_SIZE; i++) {
     if (p->arr[i]!= 0){
@@ -461,13 +461,13 @@ void sort_mem_blocks(struct proc *p) {
     struct mem_block *current = p->arr[i];
     p->arr[i] = p->arr[i]->next;
 
-    if (sorted == NULL || (current->end - current->start) <= (sorted->end - sorted->start)) {
+    if (sorted == 0 || (current->end - current->start) <= (sorted->end - sorted->start)) {
       current->next = sorted;
       sorted = current;
     } else {
       struct mem_block *temp = sorted;
 
-      while (temp->next != NULL && (temp->next->end - temp->next->start) < (current->end - current->start)) {
+      while (temp->next != 0 && (temp->next->end - temp->next->start) < (current->end - current->start)) {
         temp = temp->next;
       }
 
