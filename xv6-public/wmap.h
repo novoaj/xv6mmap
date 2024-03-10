@@ -10,6 +10,10 @@
 #define FAILED -1
 #define SUCCESS 0
 
+// "For this project, you're REQUIRED to only use addresses between 0x60000000 and 0x80000000 to serve wmap requests."
+#define MIN_ADDR 0x60000000
+#define MAX_ADDR 0x80000000
+
 // for `getpgdirinfo`
 #define MAX_UPAGE_INFO 32
 struct pgdirinfo {

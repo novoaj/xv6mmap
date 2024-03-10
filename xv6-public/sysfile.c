@@ -445,23 +445,33 @@ sys_pipe(void)
   return 0;
 }
 /*
- * memory linked list functions
+ * memory array functions
  */
-
+// insertion sort? sort by start addr, would help us when inserting new addrs
+// https://www.geeksforgeeks.org/insertion-sort/
 /*
  * P4 syscall functions
  */
 int
 sys_wmap(void){
   // uint wmap(uint addr, int length, int flags, int fd);
-  uint addr; // VA we MUST use for the mapping
+  uint addr; // VA we MUST use for the MAP_FIXED
   int length;
-  int flags;
+  int flags; // we don't care about addr given to us if MAP_FIXED is not set
   int fd; // ignore in case of Map anonymous
-  
+  // MAP_SHARED means we have to do some copying from parent-child in fork and exit calls in proc.c
+  // MAP_PRIVATE means mappings are not shared between parent and child processes.
+  argint(2, &flags);
+  if (flags & MAP_ANONYMOUS) {
+    cprintf("%d",flags & MAP_ANONYMOUS);
+  }
   // invalid args?
   if (argint(0, (int*)&addr) < 0  || (argint(1, &length) < 1) || (argint(2, &flags) < 0)) { //|| argint(3, &fd) < 0) {
     cprintf("error with args: addr: %d, length %d, flags: %d\n", addr, length, flags);
+  if ((argint(0, (int*)&addr) < 0)  || (argint(1, &length) < 1)){ // || argint(3, &fd) < 0) {
+    // uint uflags = (uint) flags;
+    // cprintf("uflags: %d\n", uflags);
+    cprintf("error with args: addr: %d, length: %d, flags: %d\n", addr, length, flags);
     cprintf("%d, %d, %d\n", MAP_ANONYMOUS, MAP_FIXED, MAP_PRIVATE);
     return FAILED;
   }
@@ -475,6 +485,7 @@ sys_wmap(void){
       return FAILED;
     }
     struct proc *p = myproc();
+    // p->arr; // array of length 16, should hold out mmappings
     int pagesNeeded = PGROUNDUP(length) / PGSIZE;
     char* mem;
     for (int i = 0; i < pagesNeeded; i++){
