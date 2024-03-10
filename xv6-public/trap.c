@@ -77,6 +77,11 @@ trap(struct trapframe *tf)
             cpuid(), tf->cs, tf->eip);
     lapiceoi();
     break;
+  // Add T_PGFLT
+  // case T_PGFLT: // T_PGFLT = 14
+  //    if page fault addr is part of a mapping: // lazy allocation
+        // handle it
+
 
   //PAGEBREAK: 13
   default:
