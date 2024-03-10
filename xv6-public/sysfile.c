@@ -449,56 +449,92 @@ sys_pipe(void)
  */
 // insertion sort? sort by start addr, would help us when inserting new addrs
 // https://www.geeksforgeeks.org/insertion-sort/
+
 /*
  * P4 syscall functions
  */
 int
 sys_wmap(void){
   // uint wmap(uint addr, int length, int flags, int fd);
-  uint addr; // VA we MUST use for the MAP_FIXED
+  uint addr; // VA we MUST use if MAP_FIXED
   int length;
   int flags; // we don't care about addr given to us if MAP_FIXED is not set
   int fd; // ignore in case of Map anonymous
   // MAP_SHARED means we have to do some copying from parent-child in fork and exit calls in proc.c
   // MAP_PRIVATE means mappings are not shared between parent and child processes.
+  // ^ both cannot be set at same time
   argint(2, &flags);
-  if (flags & MAP_ANONYMOUS) {
-    cprintf("%d",flags & MAP_ANONYMOUS);
-  }
-  // invalid args?
-  if ((argint(0, (int*)&addr) < 0)  || (argint(1, &length) < 1)){ // || argint(3, &fd) < 0) {
-    // uint uflags = (uint) flags;
-    // cprintf("uflags: %d\n", uflags);
+  argint(0, (int*)&addr);
+  argint(1, &length);
+
+  if (addr< 0 || length < 1){ // length and addr check
     cprintf("error with args: addr: %d, length: %d, flags: %d\n", addr, length, flags);
     cprintf("%d, %d, %d\n", MAP_ANONYMOUS, MAP_FIXED, MAP_PRIVATE);
     return FAILED;
   }
   argint(3, &fd);
-  // map memory
-  if ((flags & MAP_ANONYMOUS) != 0){
-    // check if addr is page addressable
-    // check if addr is in bounds
-    // check if requested Addr is available
+  struct proc *p = myproc();
+  cprintf("p: %p\n", p);
+
+  cprintf("PGROUNDUP(length): %d\n", PGROUNDUP(length));
+  if (flags & MAP_FIXED) {
+    cprintf("MAP_FIXED flag is set...\n");
+    // use given address, try to add to our map
     if (addr % PGSIZE != 0){
+      cprintf("provided address is not page addressable\n");
       return FAILED;
     }
-    struct proc *p = myproc();
-    // p->arr; // array of length 16, should hold out mmappings
-    int pagesNeeded = PGROUNDUP(length) / PGSIZE;
-    char* mem;
-    for (int i = 0; i < pagesNeeded; i++){
-      mem = kalloc();
-      mappages(p->pgdir, (void*) addr, PGSIZE, V2P(mem), PTE_W | PTE_U);
-      addr = addr + PGSIZE; // increment va to map to physical
+    if (addr < MIN_ADDR || addr > MAX_ADDR || (addr + PGROUNDUP(length)) > MAX_ADDR){
+      cprintf("provided address is out of bounds\n");
+      return FAILED;
     }
-    return pagesNeeded;
-    
-    // mem = kalloc();
-    // mappages(p->pgdir, (void*) 0x60001000, 4096, V2P(mem), PTE_W | PTE_U);
-    // need data structure for storing mapped information, can store in PCB?
-    // mappages in vm.c is useful
-    // kalloc helps u map virtual to physical page
+
+    int mappingStarts = addr;
+    int mappingEnds = addr + PGROUNDUP(length);
+    for (int i = 0; i < 16; i++){
+      // go through mem mappings and see if any overlap with our mapping
+      if (p->arr[i] != 0){
+        // nonnull, check if overlap
+        int curStart = p->arr[i]->start;
+        int curEnd =  p->arr[i]->end;
+        if (mappingStarts > curStart && mappingStarts < curEnd) {
+          // addr start falls in middle of existing mapping
+          return FAILED;
+        }
+        if (mappingEnds > curStart && mappingEnds < curEnd) {
+          // end falls in middle of existing mapping
+          return FAILED;
+        }
+      }
+    }
+    // insert into array, return start addr of new mapping (mappingStarts)
     return SUCCESS;
+    // think about case where we already have 16 mappings?
+    if (flags & MAP_ANONYMOUS){
+      // ignore fd argument
+    }
+  }else{
+    cprintf("case where MAP_FIXED flag is not set...\n");
+    // MAP FIXED isn't set, we have to find an open space for our mapping
+    // find lowest address that is available that we can insert this mapping into
+    // mem = kalloc();
+    // mappages(p->pgdir, (void*) addr, PGSIZE, V2P(mem), PTE_W | PTE_U);
+    // how many pages do we need?
+    // where do we insert? 
+    // int prev_end = 0;
+    // int cur_addr = MIN_ADDR;
+    for (int i = 1; i < 16; i++){
+      int j = i - 1;
+      if (p->arr[j] == 0){
+        // first elemenet is unitialized, insert
+
+      }
+      if (p->arr[i] == 0){
+        // null pointer
+        // in this case, we take the 
+      }
+    }
   }
+
   return FAILED;
 }
