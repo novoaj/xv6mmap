@@ -483,14 +483,18 @@ void sort_mem_blocks(struct proc *p) {
 * Needs to interact with the sort_mem_block function
 * Will perform the insertion
 */
-int insert_mapping(struct mapping* arr[], struct mapping* new_mapping, int size) {
+int insert_mapping(mem_block* arr[], int size, uint start, uint end, int flags) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
+// arr is initially full of null pointers (0 values), need idx of array to point to a mem_block struct with values we give in parameters to this function
     int i = size - 1; // Start from the last element of the array
-
+    
     // Check if the array is already full
     if (arr[size - 1] != 0) {
         return FAILED; // Array is full, return error code
     }
-
+    mem_block* new_mapping;
+    new_mapping->start = start;
+    new_mapping->end = end;
+    new_mapping->flags = flags;
     // Find the correct position to insert the new mapping
     while (i >= 0 && arr[i] != 0 && arr[i]->start > new_mapping->start) {
         // Check if the new mapping fits between the end of the previous mapping and the start of the next mapping
@@ -598,8 +602,6 @@ sys_wmap(void){
       }
     }
     return leftmostAddr;
-     
-    // mappages(p->pgdir, (void*) addr, PGSIZE, V2P(mem), PTE_W | PTE_U);
   }
 
   return FAILED;
