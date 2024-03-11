@@ -449,76 +449,82 @@ sys_pipe(void)
  */
 // insertion sort? sort by start addr, would help us when inserting new addrs
 // https://www.geeksforgeeks.org/insertion-sort/
-void sort_mem_blocks(struct proc *p) {
-  const int ARR_SIZE = 16;
+// void sort_mem_blocks(struct proc *p) {
+//   const int ARR_SIZE = 16;
 
-  struct mem_block *sorted = 0;
+//   struct mem_block *sorted = 0;
 
-  for (int i = 0; i < ARR_SIZE; i++) {
-    if (p->arr[i]!= 0){
-      continue;
-    }
-    struct mem_block *current = p->arr[i];
-    p->arr[i] = p->arr[i]->next;
+//   for (int i = 0; i < ARR_SIZE; i++) {
+//     if (p->arr[i]!= 0){
+//       continue;
+//     }
+//     struct mem_block *current = p->arr[i];
+//     p->arr[i] = p->arr[i]->next;
 
-    if (sorted == 0 || (current->end - current->start) <= (sorted->end - sorted->start)) {
-      current->next = sorted;
-      sorted = current;
-    } else {
-      struct mem_block *temp = sorted;
+//     if (sorted == 0 || (current->end - current->start) <= (sorted->end - sorted->start)) {
+//       current->next = sorted;
+//       sorted = current;
+//     } else {
+//       struct mem_block *temp = sorted;
 
-      while (temp->next != 0 && (temp->next->end - temp->next->start) < (current->end - current->start)) {
-        temp = temp->next;
-      }
+//       while (temp->next != 0 && (temp->next->end - temp->next->start) < (current->end - current->start)) {
+//         temp = temp->next;
+//       }
 
-      current->next = temp->next;
-      temp->next = current;
+//       current->next = temp->next;
+//       temp->next = current;
 
-    }
-    p->arr[i] = sorted;
-  }
-}
+//     }
+//     p->arr[i] = sorted;
+//   }
+// }
 
 /* Insertion Logic
 * Needs to interact with the sort_mem_block function
 * Will perform the insertion
 */
-int insert_mapping(mem_block* arr[], int size, uint start, uint end, int flags, int length) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
+int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length, int numMappings) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
 // arr is initially full of null pointers (0 values), need idx of array to point to a mem_block struct with values we give in parameters to this function
-    int i = size - 1; // Start from the last element of the array
+    cprintf("inserting into mmap\n");
     
     // Check if the array is already full
-    if (arr[size - 1] != 0) {
-        return FAILED; // Array is full, return error code
+    if (numMappings == MAX_WMMAP_INFO) {
+      cprintf("can't add any more memory mappings\n");
+      return FAILED; // Array is full, return error code
     }
-    // new_mapping->start = start;
-    // new_mapping->end = end;
-    // new_mapping->flags = flags;
-    // new_mapping->length = length;
+    // arr[idx] is initially NULL (0), need it to point to a mem_block struct after this insert method. do we need to kalloc?
+    mem_block* new_mapping = (mem_block*)kalloc();
+    new_mapping->start = start;
+    new_mapping->end = end;
+    new_mapping->flags = flags;
+    new_mapping->length = length;
+    // find index to insert into
+    int i = 0; // Start from the first element of the array
+    if (numMappings == 0){
+      cprintf("block inserted - start: %x, end: %x, length: %d, flags: %d\n", start, end, flags, length);
+      arr[0] = new_mapping;
+      return arr[0]->start;
+    }
     // Find the correct position to insert the new mapping
     while (i >= 0 && arr[i] != 0 && arr[i]->start > start) {
         // Check if the new mapping fits between the end of the previous mapping and the start of the next mapping
-        if (i > 0 && arr[i - 1] != 0 && (arr[i - 1]->end + 1) >= start && arr[i]->start <= (start + length)) {
+        if (i > 0 && arr[i - 1] != 0 && (arr[i - 1]->end + 1) >= start && arr[i]->start <= (end)) {
             // Insert the new mapping at the correct position
-            arr[i + 1]->start = start;
-            arr[i + 1]->end = end;
-            arr[i + 1]->flags = flags;
-            arr[i + 1]->length = length;
-
+            arr[i + 1] = new_mapping;
             return arr[i+1]->start;
         }
         arr[i + 1] = arr[i]; // Move elements greater than new_mapping to the right
         i--;
     }
     // Insert the new mapping at the correct position
-    arr[i + 1]->start = start;
-    arr[i + 1]->end = end;
-    arr[i + 1]->flags = flags;
-    arr[i + 1]->length = length;
+    arr[i + 1] = new_mapping;
     // Check if the new mapping goes beyond MAX_ADDR
     if (arr[i+1]->start + arr[i+1]->length > MAX_ADDR) {
+        kfree((char*)new_mapping);
         return FAILED; // Return error code
     }
+    cprintf("iteration: %d\n", i);
+    cprintf("block inserted - start: %x, end: %x, length: %d, flags: %d\n", start, end, flags, length);
     return arr[i+1]->start;
 }
 
@@ -566,6 +572,7 @@ sys_wmap(void){
 
     // p->arr; // array of length 16, should hold our mmappings
     int pagesNeeded = PGROUNDUP(length) / PGSIZE;
+    uint end = addr + PGROUNDUP(length);
     
     uint startAddr = addr;
     // mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
