@@ -449,6 +449,70 @@ sys_pipe(void)
  */
 // insertion sort? sort by start addr, would help us when inserting new addrs
 // https://www.geeksforgeeks.org/insertion-sort/
+void sort_mem_blocks(struct proc *p) {
+  const int ARR_SIZE = 16;
+
+  struct mem_block *sorted = 0;
+
+  for (int i = 0; i < ARR_SIZE; i++) {
+    if (p->arr[i]!= 0){
+      continue;
+    }
+    struct mem_block *current = p->arr[i];
+    p->arr[i] = p->arr[i]->next;
+
+    if (sorted == 0 || (current->end - current->start) <= (sorted->end - sorted->start)) {
+      current->next = sorted;
+      sorted = current;
+    } else {
+      struct mem_block *temp = sorted;
+
+      while (temp->next != 0 && (temp->next->end - temp->next->start) < (current->end - current->start)) {
+        temp = temp->next;
+      }
+
+      current->next = temp->next;
+      temp->next = current;
+
+    }
+    p->arr[i] = sorted;
+  }
+}
+
+/* Insertion Logic
+* Needs to interact with the sort_mem_block function
+* Will perform the insertion
+*/
+int insert_mapping(struct mapping* arr[], struct mapping* new_mapping, int size) {
+    int i = size - 1; // Start from the last element of the array
+
+    // Check if the array is already full
+    if (arr[size - 1] != 0) {
+        return FAILED; // Array is full, return error code
+    }
+
+    // Find the correct position to insert the new mapping
+    while (i >= 0 && arr[i] != 0 && arr[i]->start > new_mapping->start) {
+        // Check if the new mapping fits between the end of the previous mapping and the start of the next mapping
+        if (i > 0 && arr[i - 1] != 0 && (arr[i - 1]->end + 1) >= new_mapping->start && arr[i]->start <= (new_mapping->start + new_mapping->length)) {
+            // Insert the new mapping at the correct position
+            arr[i + 1] = new_mapping;
+            return new_mapping->start;
+        }
+        arr[i + 1] = arr[i]; // Move elements greater than new_mapping to the right
+        i--;
+    }
+
+    // Insert the new mapping at the correct position
+    arr[i + 1] = new_mapping;
+
+    // Check if the new mapping goes beyond MAX_ADDR
+    if (new_mapping->start + new_mapping->length > MAX_ADDR) {
+        return FAILED; // Return error code
+    }
+
+    return new_mapping->start;
+}
 
 /*
  * P4 syscall functions
@@ -456,18 +520,20 @@ sys_pipe(void)
 int
 sys_wmap(void){
   // uint wmap(uint addr, int length, int flags, int fd);
-  uint addr; // VA we MUST use if MAP_FIXED
+  uint addr; // VA we MUST use for the MAP_FIXED
   int length;
   int flags; // we don't care about addr given to us if MAP_FIXED is not set
   int fd; // ignore in case of Map anonymous
   // MAP_SHARED means we have to do some copying from parent-child in fork and exit calls in proc.c
   // MAP_PRIVATE means mappings are not shared between parent and child processes.
-  // ^ both cannot be set at same time
   argint(2, &flags);
-  argint(0, (int*)&addr);
-  argint(1, &length);
-
-  if (addr< 0 || length < 1){ // length and addr check
+  if (flags & MAP_ANONYMOUS) {
+    cprintf("%d",flags & MAP_ANONYMOUS);
+  }
+  // invalid args?
+  if ((argint(0, (int*)&addr) < 0)  || (argint(1, &length) < 1)){ // || argint(3, &fd) < 0) {
+    // uint uflags = (uint) flags;
+    // cprintf("uflags: %d\n", uflags);
     cprintf("error with args: addr: %d, length: %d, flags: %d\n", addr, length, flags);
     cprintf("%d, %d, %d\n", MAP_ANONYMOUS, MAP_FIXED, MAP_PRIVATE);
     return FAILED;
@@ -484,42 +550,19 @@ sys_wmap(void){
     cprintf("MAP_FIXED flag is set...\n");
     // use given address, try to add to our map
     if (addr % PGSIZE != 0){
-      cprintf("provided address is not page addressable\n");
       return FAILED;
     }
-    if (addr < MIN_ADDR || addr > MAX_ADDR || (addr + PGROUNDUP(length)) > MAX_ADDR){
-      cprintf("provided address is out of bounds\n");
-      return FAILED;
+    struct proc *p = myproc();
+    // p->arr; // array of length 16, should hold out mmappings
+    int pagesNeeded = PGROUNDUP(length) / PGSIZE;
+    char* mem;
+    for (int i = 0; i < pagesNeeded; i++){
+      mem = kalloc();
+      mappages(p->pgdir, (void*) addr, PGSIZE, V2P(mem), PTE_W | PTE_U);
+      addr = addr + PGSIZE; // increment va to map to physical
     }
-
-    int mappingStarts = addr;
-    int mappingEnds = addr + PGROUNDUP(length);
-    for (int i = 0; i < 16; i++){
-      // go through mem mappings and see if any overlap with our mapping
-      if (p->arr[i] != 0){
-        // nonnull, check if overlap
-        int curStart = p->arr[i]->start;
-        int curEnd =  p->arr[i]->end;
-        if (mappingStarts > curStart && mappingStarts < curEnd) {
-          // addr start falls in middle of existing mapping
-          return FAILED;
-        }
-        if (mappingEnds > curStart && mappingEnds < curEnd) {
-          // end falls in middle of existing mapping
-          return FAILED;
-        }
-      }
-    }
-    // insert into array, return start addr of new mapping (mappingStarts)
-    return SUCCESS;
-    // think about case where we already have 16 mappings?
-    if (flags & MAP_ANONYMOUS){
-      // ignore fd argument
-    }
-  }else{
-    cprintf("case where MAP_FIXED flag is not set...\n");
-    // MAP FIXED isn't set, we have to find an open space for our mapping
-    // find lowest address that is available that we can insert this mapping into
+    return pagesNeeded;
+    
     // mem = kalloc();
 
     // if array is empty
