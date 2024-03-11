@@ -39,6 +39,7 @@ typedef struct mem_block {
     uint start; // Start address of the block
     uint end;   // End address of the block
     int flags;
+    int length;
     struct mem_block *prev; // Pointer to the previous block
     struct mem_block *next; // Pointer to the next block
 } mem_block;

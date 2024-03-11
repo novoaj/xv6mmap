@@ -483,7 +483,7 @@ void sort_mem_blocks(struct proc *p) {
 * Needs to interact with the sort_mem_block function
 * Will perform the insertion
 */
-int insert_mapping(mem_block* arr[], int size, uint start, uint end, int flags) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
+int insert_mapping(mem_block* arr[], int size, uint start, uint end, int flags, int length) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
 // arr is initially full of null pointers (0 values), need idx of array to point to a mem_block struct with values we give in parameters to this function
     int i = size - 1; // Start from the last element of the array
     
@@ -491,31 +491,35 @@ int insert_mapping(mem_block* arr[], int size, uint start, uint end, int flags) 
     if (arr[size - 1] != 0) {
         return FAILED; // Array is full, return error code
     }
-    mem_block* new_mapping;
-    new_mapping->start = start;
-    new_mapping->end = end;
-    new_mapping->flags = flags;
+    // new_mapping->start = start;
+    // new_mapping->end = end;
+    // new_mapping->flags = flags;
+    // new_mapping->length = length;
     // Find the correct position to insert the new mapping
-    while (i >= 0 && arr[i] != 0 && arr[i]->start > new_mapping->start) {
+    while (i >= 0 && arr[i] != 0 && arr[i]->start > start) {
         // Check if the new mapping fits between the end of the previous mapping and the start of the next mapping
-        if (i > 0 && arr[i - 1] != 0 && (arr[i - 1]->end + 1) >= new_mapping->start && arr[i]->start <= (new_mapping->start + new_mapping->length)) {
+        if (i > 0 && arr[i - 1] != 0 && (arr[i - 1]->end + 1) >= start && arr[i]->start <= (start + length)) {
             // Insert the new mapping at the correct position
-            arr[i + 1] = new_mapping;
-            return new_mapping->start;
+            arr[i + 1]->start = start;
+            arr[i + 1]->end = end;
+            arr[i + 1]->flags = flags;
+            arr[i + 1]->length = length;
+
+            return arr[i+1]->start;
         }
         arr[i + 1] = arr[i]; // Move elements greater than new_mapping to the right
         i--;
     }
-
     // Insert the new mapping at the correct position
-    arr[i + 1] = new_mapping;
-
+    arr[i + 1]->start = start;
+    arr[i + 1]->end = end;
+    arr[i + 1]->flags = flags;
+    arr[i + 1]->length = length;
     // Check if the new mapping goes beyond MAX_ADDR
-    if (new_mapping->start + new_mapping->length > MAX_ADDR) {
+    if (arr[i+1]->start + arr[i+1]->length > MAX_ADDR) {
         return FAILED; // Return error code
     }
-
-    return new_mapping->start;
+    return arr[i+1]->start;
 }
 
 /*
@@ -531,11 +535,13 @@ sys_wmap(void){
   // MAP_SHARED means we have to do some copying from parent-child in fork and exit calls in proc.c
   // MAP_PRIVATE means mappings are not shared between parent and child processes.
   argint(2, &flags);
+  argint(0, (int*)&addr);
+  argint(1, &length);
   if (flags & MAP_ANONYMOUS) {
-    cprintf("%d",flags & MAP_ANONYMOUS);
+    cprintf("flags & MAP_ANONYMOUS%d\n",flags & MAP_ANONYMOUS);
   }
   // invalid args?
-  if ((argint(0, (int*)&addr) < 0)  || (argint(1, &length) < 1)){ // || argint(3, &fd) < 0) {
+  if ((addr < 0)  || (length < 1)){ // || argint(3, &fd) < 0) {
     // uint uflags = (uint) flags;
     // cprintf("uflags: %d\n", uflags);
     cprintf("error with args: addr: %d, length: %d, flags: %d\n", addr, length, flags);
@@ -556,8 +562,9 @@ sys_wmap(void){
     if (addr % PGSIZE != 0){
       return FAILED;
     }
-    struct proc *p = myproc();
-    // p->arr; // array of length 16, should hold out mmappings
+    // TODO check if provided addr is going to fit in our existing mmappings
+
+    // p->arr; // array of length 16, should hold our mmappings
     int pagesNeeded = PGROUNDUP(length) / PGSIZE;
     char* mem;
     for (int i = 0; i < pagesNeeded; i++){
@@ -566,15 +573,14 @@ sys_wmap(void){
       addr = addr + PGSIZE; // increment va to map to physical
     }
     return pagesNeeded;
-    
-    // mem = kalloc();
-
-    // if array is empty
+  } else{
+    // not map fixed, we find place for insert
+    // if array is full
     if (p->arr[15] != 0){
         return FAILED;
     }
     int leftmostAddr = 0;
-    cprintf("%d\n", leftmostAddr);
+    cprintf("leftmostaddr: %d\n", leftmostAddr);
     // if array is empty
     if (p->arr[0] == 0){
       if (MIN_ADDR + length <= MAX_ADDR){
@@ -600,9 +606,9 @@ sys_wmap(void){
       if (leftmostAddr + length > MAX_ADDR){
         return FAILED;
       }
+      }
+      return leftmostAddr;
+    
     }
-    return leftmostAddr;
-  }
-
   return FAILED;
-}
+  }
