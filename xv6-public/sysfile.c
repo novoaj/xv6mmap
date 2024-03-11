@@ -450,6 +450,7 @@ sys_pipe(void)
 
 /*
 * Will perform the insertion in sorted order by start time. creates new mem_block to be inserted.
+* relies on wmap to check if the interval: (start, end) will fit into mmap BEFORE calling insert_mapping. 
 */
 int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length, int numMappings) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
 // arr is initially full of null pointers (0 values), need idx of array to point to a mem_block struct with values we give in parameters to this function
