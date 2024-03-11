@@ -584,14 +584,11 @@ sys_wmap(void){
     }
     int pagesNeeded = PGROUNDUP(length) / PGSIZE;
     
-    // allocate physical pages, map virtual to physical
     uint startAddr = addr;
-    // pde_t* page_directory = p->pgdir;
     // mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
-
     for (int i = 0; i < pagesNeeded; i++){
       char* mem;
-      mem = kalloc();
+      mem = kalloc(); // kalloc to give us va that maps to pa
       if (mem == 0){
         panic("kalloc");
       }
@@ -612,6 +609,11 @@ sys_wmap(void){
     if (insertAddr == FAILED){ // successful insert?
       return FAILED;
     }
+    // succesful insert, update wmapinfo
+    p->wmapinfo->addr[p->wmapinfo->total_mmaps] = insertAddr;
+    p->wmapinfo->n_loaded_pages[p->wmapinfo->total_mmaps] = PGROUNDUP(length) / PGSIZE;
+    p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGROUNDUP(length);
+    p->wmapinfo->total_mmaps++;
     return insertAddr;
   } else{
     // not map fixed, we find place for insert
@@ -620,7 +622,8 @@ sys_wmap(void){
         return FAILED;
     }
     int leftmostAddr = 0;
-    cprintf("leftmostaddr: %d\n", leftmostAddr);
+    int end = addr + PGROUNDUP(length);
+    cprintf("leftmostaddr before calculation: %d\n", leftmostAddr);
     // if array is empty
     if (p->arr[0] == 0){
       if (MIN_ADDR + length <= MAX_ADDR){
@@ -643,12 +646,21 @@ sys_wmap(void){
           }
         }
       }
-      if (leftmostAddr + length > MAX_ADDR){
+      if (end > MAX_ADDR){
         return FAILED;
       }
       }
       // TODO insert at leftmostAddr in our array of mappings
-      return leftmostAddr;
+      uint insertAddr = insert_mapping((mem_block**)&p->arr, addr, end, flags, length, p->wmapinfo->total_mmaps);
+      if (insertAddr == FAILED){
+        return FAILED;
+      }
+      // succesful insert, update wmapinfo
+      p->wmapinfo->addr[p->wmapinfo->total_mmaps] = insertAddr;
+      p->wmapinfo->n_loaded_pages[p->wmapinfo->total_mmaps] = PGROUNDUP(length) / PGSIZE;
+      p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGROUNDUP(length);
+      p->wmapinfo->total_mmaps++;
+      return insertAddr;
     
     }
   return FAILED;
