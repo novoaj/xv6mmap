@@ -538,7 +538,7 @@ sys_wmap(void){
   argint(0, (int*)&addr);
   argint(1, &length);
   if (flags & MAP_ANONYMOUS) {
-    cprintf("flags & MAP_ANONYMOUS%d\n",flags & MAP_ANONYMOUS);
+    cprintf("flags & MAP_ANONYMOUS: %d\n",flags & MAP_ANONYMOUS);
   }
   // invalid args?
   if ((addr < 0)  || (length < 1)){ // || argint(3, &fd) < 0) {
@@ -567,11 +567,14 @@ sys_wmap(void){
     // p->arr; // array of length 16, should hold our mmappings
     int pagesNeeded = PGROUNDUP(length) / PGSIZE;
     char* mem;
+    // allocate physical pages, map virtual to physical
     for (int i = 0; i < pagesNeeded; i++){
       mem = kalloc();
       mappages(p->pgdir, (void*) addr, PGSIZE, V2P(mem), PTE_W | PTE_U);
       addr = addr + PGSIZE; // increment va to map to physical
     }
+    // TODO insert operation into array
+
     return pagesNeeded;
   } else{
     // not map fixed, we find place for insert
@@ -607,6 +610,7 @@ sys_wmap(void){
         return FAILED;
       }
       }
+      // TODO insert at leftmostAddr in our array of mappings
       return leftmostAddr;
     
     }
