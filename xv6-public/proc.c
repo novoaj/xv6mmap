@@ -118,6 +118,12 @@ found:
     panic("kalloc()");
   }
   wmap->total_mmaps = 0;
+  // init wmap info arrays to hold 0 values at each idx
+  for (int i = 0; i < MAX_WMMAP_INFO; i++){
+    wmap->addr[i] = 0;
+    wmap->length[i] = 0;
+    wmap->n_loaded_pages[i] = 0;
+  }
   p->wmapinfo = wmap; // init wmap pointer in process to point to this struct
   // allocproc is called in fork method, rn reinitializing everything, ultimately that will depend on flags
   // init arr to all null pointers
