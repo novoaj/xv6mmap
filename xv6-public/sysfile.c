@@ -587,6 +587,7 @@ sys_wmap(void){
     // allocate physical pages, map virtual to physical
     uint startAddr = addr;
     // pde_t* page_directory = p->pgdir;
+    // mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 
     for (int i = 0; i < pagesNeeded; i++){
       char* mem;
@@ -595,10 +596,13 @@ sys_wmap(void){
         panic("kalloc");
       }
       memset(mem, 0, PGSIZE);
-      if (mappages(p->pgdir, (void*) addr, PGSIZE, V2P(mem), PTE_W | PTE_U) != 0){
+      cprintf("calling mappages with pgdir = %p, va: %x, size: %d, pa: %x perm: %d\n", p->pgdir, addr, PGSIZE, V2P(mem), PTE_W | PTE_U);
+      if (mappages(p->pgdir, (void*) startAddr, PGSIZE, V2P(mem), PTE_W | PTE_U) != 0){
+        cprintf("mappages failed\n");
         kfree(mem);
       }
       startAddr = startAddr + PGSIZE; // increment va to map to physical
+      cprintf("startAddr: %x\n", startAddr);
     }
     // TODO insert operation into array
     
