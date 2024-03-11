@@ -477,6 +477,9 @@ sys_wmap(void){
   cprintf("p: %p\n", p);
 
   cprintf("PGROUNDUP(length): %d\n", PGROUNDUP(length));
+  cprintf("PGROUNDUP(length): %d\n", PGROUNDUP(4095));
+  cprintf("PGROUNDDOWN(4098): %d\n", PGROUNDDOWN(4098));
+  cprintf("PGROUNDDOWN(8078): %d\n", PGROUNDDOWN(8078));
   if (flags & MAP_FIXED) {
     cprintf("MAP_FIXED flag is set...\n");
     // use given address, try to add to our map
@@ -518,22 +521,42 @@ sys_wmap(void){
     // MAP FIXED isn't set, we have to find an open space for our mapping
     // find lowest address that is available that we can insert this mapping into
     // mem = kalloc();
-    // mappages(p->pgdir, (void*) addr, PGSIZE, V2P(mem), PTE_W | PTE_U);
-    // how many pages do we need?
-    // where do we insert? 
-    // int prev_end = 0;
-    // int cur_addr = MIN_ADDR;
-    for (int i = 1; i < 16; i++){
-      int j = i - 1;
-      if (p->arr[j] == 0){
-        // first elemenet is unitialized, insert
 
+    // if array is empty
+    if (p->arr[15] != 0){
+        return FAILED;
+    }
+    int leftmostAddr = 0;
+    cprintf("%d\n", leftmostAddr);
+    // if array is empty
+    if (p->arr[0] == 0){
+      if (MIN_ADDR + length <= MAX_ADDR){
+        leftmostAddr = MIN_ADDR;
+      }else{
+        return FAILED;
       }
-      if (p->arr[i] == 0){
-        // null pointer
-        // in this case, we take the 
+    }else{
+      leftmostAddr = MAX_ADDR;
+      // iter through array to find leftmost block our mapping will fit
+      for (int i = 0; i < 16; i++) {
+        if (p->arr[i] != 0){
+          if (i==0 || (p->arr[i]->start - p->arr[i-1]->end) >= PGROUNDUP(length)){
+            if (p->arr[i]->end + 1 + length <= MAX_ADDR) {
+              leftmostAddr = p->arr[i]->end + 1;
+              break;
+            }else{
+              return FAILED;
+            }
+          }
+        }
+      }
+      if (leftmostAddr + length > MAX_ADDR){
+        return FAILED;
       }
     }
+    return leftmostAddr;
+     
+    // mappages(p->pgdir, (void*) addr, PGSIZE, V2P(mem), PTE_W | PTE_U);
   }
 
   return FAILED;
