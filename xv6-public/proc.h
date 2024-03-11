@@ -61,6 +61,7 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   struct mem_block* arr[16];   // our memory mapping array
+  int numMappings;
 
 };
 

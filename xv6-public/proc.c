@@ -111,7 +111,8 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
-
+  
+  p->numMappings = 0; // init field in proc
   return p;
 }
 
