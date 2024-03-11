@@ -673,3 +673,15 @@ sys_wunmap(void) {
   // TODO: write remove method for out mmap array (needs to keep array in order and contiguous - no holes in array, when removing ith index, i+1 onward should shift left in arr)
   return -1;
 }
+
+int sys_wremap(){
+  return -1;
+}
+
+int sys_getpgdirinfo(){
+  return -1;
+}
+
+int sys_getwmapinfo(){
+  return -1;
+}
