@@ -638,5 +638,34 @@ sys_wmap(void){
 
 int
 sys_wunmap(void) {
+  uint addr;
+
+  argint(0, (int*)&addr);
+
+  // addr must be page aligned
+  if (addr % PGSIZE != 0){
+    cprintf("Address not page aligned\n");
+    return FAILED;
+  }
+  // must be start of an existing mmap
+  struct proc* p = myproc();
+  int mappingExists = 0;
+  int location = 0;
+  for (int i = 0; i < p->wmapinfo->total_mmaps; i++){
+    // if we can't find the mmap to remove, return FAILED
+    if (p->arr[i]->start == addr){
+      mappingExists = 1;
+      location = i;
+      break;
+    }
+  }
+
+  
+  if (mappingExists == 0){ // no existing mapping with start = addr
+    return FAILED;
+  }
+  // p->arr[location]; // points to the mem_block we need to remove. check flags and see if file backed. if file backed, write to file
+  // TODO: consider flags (if MAP_SHARED, write mem data back to the file)
+  // TODO: write remove method for out mmap array
   return -1;
 }
