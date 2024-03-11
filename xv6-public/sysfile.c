@@ -497,42 +497,34 @@ int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length
     }
     // arr[idx] is initially NULL (0), need it to point to a mem_block struct after this insert method. do we need to kalloc?
     mem_block* new_mapping = (mem_block*)kalloc();
+    if (new_mapping == 0){
+      panic("kalloc()");
+      return FAILED;
+    }
     new_mapping->start = start;
     new_mapping->end = end;
     new_mapping->flags = flags;
     new_mapping->length = length;
     // find index to insert into
-    int i = 0; // Start from the first element of the array
 
     if (numMappings == 0){ // empty case
       arr[0] = new_mapping;
-      cprintf("block inserted - start: %x, end: %x, length: %d, flags: %d\n", start, end, flags, length);
+      cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", 0, start, end, flags, length);
       return arr[0]->start;
     }
     // find correct idx to insert, if already something at idx, move to idx+1 and all the ones to the right as well
     // want to sort by start addr
     // Find the correct position to insert the new mapping
-    while (i < MAX_WMMAP_INFO && arr[i] != 0 && arr[i]->start > start) {
-        // Check if the new mapping fits between the end of the previous mapping and the start of the next mapping
-        if (i > 0 && arr[i - 1] != 0 && (arr[i - 1]->end + 1) >= start && arr[i]->start <= (end)) {
-            // Insert the new mapping at the correct position
-            arr[i + 1] = new_mapping;
-            cprintf("inserting mapping aat idx: %d\n", i+1);
-            return arr[i+1]->start;
-        }
-        arr[i] = arr[i+1]; // Move elements greater than new_mapping to the right
-        i++;
+    int insert_idx = numMappings;
+    while (insert_idx > 0 && arr[insert_idx - 1]->start > start) { // if ith mapping belongs before i-1 mapping, shift i-1 to i (right shift)
+      arr[insert_idx] = arr[insert_idx - 1];
+      insert_idx--;
     }
-    // Insert the new mapping at the correct position
-    arr[i + 1] = new_mapping;
-    // Check if the new mapping goes beyond MAX_ADDR
-    if (arr[i+1]->start + arr[i+1]->length > MAX_ADDR) {
-        kfree((char*)new_mapping);
-        return FAILED; // Return error code
-    }
-    cprintf("inserted at idx: %d\n", i+1);
-    cprintf("block inserted - start: %x, end: %x, length: %d, flags: %d\n", start, end, flags, length);
-    return arr[i+1]->start;
+
+    // insert mapping
+    arr[insert_idx] = new_mapping;
+    cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", insert_idx, start, end, flags, length);
+    return new_mapping->start;
 }
 
 /*
@@ -550,9 +542,7 @@ sys_wmap(void){
   argint(2, &flags);
   argint(0, (int*)&addr);
   argint(1, &length);
-  // if (flags & MAP_ANONYMOUS) {
-  //   cprintf("flags & MAP_ANONYMOUS: %d\n",flags & MAP_ANONYMOUS);
-  // }
+
   // invalid args?
   if ((addr < 0)  || (length < 1)){ // || argint(3, &fd) < 0) {
     // uint uflags = (uint) flags;
@@ -563,7 +553,6 @@ sys_wmap(void){
   }
   argint(3, &fd);
   struct proc *p = myproc();
-  // cprintf("p: %p\n", p);
 
   if (flags & MAP_FIXED) {
     cprintf("MAP_FIXED flag is set...\n");
@@ -572,7 +561,8 @@ sys_wmap(void){
       return FAILED;
     }
     uint end = addr + PGROUNDUP(length) - 1;
-    // TODO check if provided addr is going to fit in our existing mmappings
+
+    // check if provided addr is going to fit in our existing mmappings
     for (int i = 0; i < MAX_WMMAP_INFO; i++){
       if (p->arr[i] != 0){
         // will this mapping overlap with an existing one?
@@ -584,10 +574,8 @@ sys_wmap(void){
         }
       }
     }
-    // p->arr; // array of length 16, should hold our mmappings
+
     int pagesNeeded = PGROUNDUP(length) / PGSIZE;
-    
-    
     uint startAddr = addr;
     // mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
     for (int i = 0; i < pagesNeeded; i++){
@@ -605,8 +593,8 @@ sys_wmap(void){
       startAddr = startAddr + PGSIZE; // increment va to map to physical
       cprintf("startAddr: %x\n", startAddr);
     }
-    // TODO insert operation into array
-    
+
+    // insert operation into array
     cprintf("inserting new mapping: start: %x, end: %x, flags: %d\n", addr, end, flags);
     uint insertAddr = insert_mapping((mem_block**)&p->arr, addr, end, flags, length, p->wmapinfo->total_mmaps);
     
@@ -619,6 +607,7 @@ sys_wmap(void){
     p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGROUNDUP(length);
     p->wmapinfo->total_mmaps++;
     // print array after insert:
+    cprintf("\n\narray after inserting: \n\n");
     for (int i = 0; i < MAX_WMMAP_INFO; i++){
       cprintf("%p\n",p->arr[i]);
     }
@@ -642,13 +631,11 @@ sys_wmap(void){
 
       // if this pointer is null, we can assign it to prevEnd+1
       if (p->arr[i] == 0) {
-        cprintf("should insert at idx: %d\n", i);
         leftmostAddr = prevEnd + 1;
         break; 
       }
       curStart = p->arr[i]->start; // we know that ith element of array is nonnull
       if (curStart - prevEnd > PGROUNDUP(length)){ // can we fit our mapping between the ith and i-1 mappings?
-        cprintf("should insert at idx: %d\n", i);
         leftmostAddr = prevEnd + 1;
       }
       // increment prevEnd
@@ -668,7 +655,9 @@ sys_wmap(void){
       p->wmapinfo->n_loaded_pages[p->wmapinfo->total_mmaps] = PGROUNDUP(length) / PGSIZE;
       p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGROUNDUP(length);
       p->wmapinfo->total_mmaps++;
+
       // print array after insert:
+      cprintf("\n\narray after inserting: \n\n");
       for (int i = 0; i < MAX_WMMAP_INFO; i++){
         cprintf("%p\n",p->arr[i]);
       }
