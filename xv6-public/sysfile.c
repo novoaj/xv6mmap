@@ -449,35 +449,35 @@ sys_pipe(void)
  */
 // insertion sort? sort by start addr, would help us when inserting new addrs
 // https://www.geeksforgeeks.org/insertion-sort/
-void sort_mem_blocks(struct proc *p) {
-  const int ARR_SIZE = 16;
+// void sort_mem_blocks(struct proc *p) {
+//   const int ARR_SIZE = 16;
 
-  struct mem_block *sorted = 0;
+//   struct mem_block *sorted = 0;
 
-  for (int i = 0; i < ARR_SIZE; i++) {
-    if (p->arr[i]!= 0){
-      continue;
-    }
-    struct mem_block *current = p->arr[i];
-    p->arr[i] = p->arr[i]->next;
+//   for (int i = 0; i < ARR_SIZE; i++) {
+//     if (p->arr[i]!= 0){
+//       continue;
+//     }
+//     struct mem_block *current = p->arr[i];
+//     p->arr[i] = p->arr[i]->next;
 
-    if (sorted == 0 || (current->end - current->start) <= (sorted->end - sorted->start)) {
-      current->next = sorted;
-      sorted = current;
-    } else {
-      struct mem_block *temp = sorted;
+//     if (sorted == 0 || (current->end - current->start) <= (sorted->end - sorted->start)) {
+//       current->next = sorted;
+//       sorted = current;
+//     } else {
+//       struct mem_block *temp = sorted;
 
-      while (temp->next != 0 && (temp->next->end - temp->next->start) < (current->end - current->start)) {
-        temp = temp->next;
-      }
+//       while (temp->next != 0 && (temp->next->end - temp->next->start) < (current->end - current->start)) {
+//         temp = temp->next;
+//       }
 
-      current->next = temp->next;
-      temp->next = current;
+//       current->next = temp->next;
+//       temp->next = current;
 
-    }
-    p->arr[i] = sorted;
-  }
-}
+//     }
+//     p->arr[i] = sorted;
+//   }
+// }
 
 /* Insertion Logic
 * Needs to interact with the sort_mem_block function
@@ -603,7 +603,7 @@ sys_wmap(void){
     // TODO insert operation into array
     
     cprintf("inserting new mapping: start: %x, end: %x, flags: %d\n", addr, end, flags);
-    uint insertAddr = insert_mapping((mem_block**)&p->arr, addr, end, flags, length, p->numMappings);
+    uint insertAddr = insert_mapping((mem_block**)&p->arr, addr, end, flags, length, p->wmapinfo->total_mmaps);
     
     if (insertAddr == FAILED){ // successful insert?
       return FAILED;
