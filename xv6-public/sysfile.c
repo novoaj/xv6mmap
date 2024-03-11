@@ -452,7 +452,7 @@ sys_pipe(void)
 * Will perform the insertion in sorted order by start time. creates new mem_block to be inserted.
 * relies on wmap to check if the interval: (start, end) will fit into mmap BEFORE calling insert_mapping. 
 */
-int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length, int numMappings) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
+int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length, int numMappings, int fd) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
 // arr is initially full of null pointers (0 values), need idx of array to point to a mem_block struct with values we give in parameters to this function
     cprintf("inserting into mmap\n");
     // We already check in the FIXED flag case if the required addr is going to fit
@@ -474,6 +474,7 @@ int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length
     new_mapping->end = end;
     new_mapping->flags = flags;
     new_mapping->length = length;
+    new_mapping->fd = fd;
     // find index to insert into
 
     if (numMappings == 0){ // empty case
@@ -565,7 +566,7 @@ sys_wmap(void){
 
     // insert operation into array
     cprintf("inserting new mapping: start: %x, end: %x, flags: %d\n", addr, end, flags);
-    uint insertAddr = insert_mapping((mem_block**)&p->arr, addr, end, flags, length, p->wmapinfo->total_mmaps);
+    uint insertAddr = insert_mapping((mem_block**)&p->arr, addr, end, flags, length, p->wmapinfo->total_mmaps, fd);
     
     if (insertAddr == FAILED){ // successful insert?
       return FAILED;
@@ -615,7 +616,7 @@ sys_wmap(void){
       int end = leftmostAddr + PGROUNDUP(length) - 1;
       // TODO insert at leftmostAddr in our array of mappings
       cprintf("inserting at leftmostAddr: %x, end: %x\n", leftmostAddr, end);
-      uint insertAddr = insert_mapping((mem_block**)&p->arr, leftmostAddr, end, flags, length, p->wmapinfo->total_mmaps);
+      uint insertAddr = insert_mapping((mem_block**)&p->arr, leftmostAddr, end, flags, length, p->wmapinfo->total_mmaps, fd);
       if (insertAddr == FAILED){
         return FAILED;
       }
@@ -660,11 +661,14 @@ sys_wunmap(void) {
     }
   }
 
-  
   if (mappingExists == 0){ // no existing mapping with start = addr
     return FAILED;
   }
   // p->arr[location]; // points to the mem_block we need to remove. check flags and see if file backed. if file backed, write to file
+  // TODO: MAP_PRIVATE case requires us to go into fork or allocproc to copy over new mem mappings (Same virtual addrs but need to generate new physical ones for child process)
+  // TODO: MAP_SHARED means this mapping is file backed
+  // TODO: MAP_ANONYMOUS means this mapping is not file backed
+  // NOTE: these ^ don't neccesarily happen here, most logic is probably going to be written in fork or exit or allocproc. 
   // TODO: consider flags (if MAP_SHARED, write mem data back to the file)
   // TODO: write remove method for out mmap array
   return -1;
