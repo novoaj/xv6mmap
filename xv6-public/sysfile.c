@@ -543,9 +543,9 @@ sys_wmap(void){
   argint(2, &flags);
   argint(0, (int*)&addr);
   argint(1, &length);
-  if (flags & MAP_ANONYMOUS) {
-    cprintf("flags & MAP_ANONYMOUS: %d\n",flags & MAP_ANONYMOUS);
-  }
+  // if (flags & MAP_ANONYMOUS) {
+  //   cprintf("flags & MAP_ANONYMOUS: %d\n",flags & MAP_ANONYMOUS);
+  // }
   // invalid args?
   if ((addr < 0)  || (length < 1)){ // || argint(3, &fd) < 0) {
     // uint uflags = (uint) flags;
@@ -556,12 +556,8 @@ sys_wmap(void){
   }
   argint(3, &fd);
   struct proc *p = myproc();
-  cprintf("p: %p\n", p);
+  // cprintf("p: %p\n", p);
 
-  cprintf("PGROUNDUP(length): %d\n", PGROUNDUP(length));
-  cprintf("PGROUNDUP(length): %d\n", PGROUNDUP(4095));
-  cprintf("PGROUNDDOWN(4098): %d\n", PGROUNDDOWN(4098));
-  cprintf("PGROUNDDOWN(8078): %d\n", PGROUNDDOWN(8078));
   if (flags & MAP_FIXED) {
     cprintf("MAP_FIXED flag is set...\n");
     // use given address, try to add to our map
@@ -572,7 +568,7 @@ sys_wmap(void){
 
     // p->arr; // array of length 16, should hold our mmappings
     int pagesNeeded = PGROUNDUP(length) / PGSIZE;
-    uint end = addr + PGROUNDUP(length);
+    uint end = addr + PGROUNDUP(length) - 1;
     
     uint startAddr = addr;
     // mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
@@ -612,10 +608,11 @@ sys_wmap(void){
         return FAILED;
     }
     int leftmostAddr = 0;
-    int end = addr + PGROUNDUP(length);
+    int end = addr + PGROUNDUP(length) - 1;
     cprintf("leftmostaddr before calculation: %d\n", leftmostAddr);
     // if array is empty
     if (p->arr[0] == 0){
+      cprintf("p->arr[0]: %p\n", p->arr[0]);
       if (MIN_ADDR + length <= MAX_ADDR){
         leftmostAddr = MIN_ADDR;
       }else{
@@ -641,7 +638,7 @@ sys_wmap(void){
       }
       }
       // TODO insert at leftmostAddr in our array of mappings
-      uint insertAddr = insert_mapping((mem_block**)&p->arr, addr, end, flags, length, p->wmapinfo->total_mmaps);
+      uint insertAddr = insert_mapping((mem_block**)&p->arr, leftmostAddr, end, flags, length, p->wmapinfo->total_mmaps);
       if (insertAddr == FAILED){
         return FAILED;
       }
