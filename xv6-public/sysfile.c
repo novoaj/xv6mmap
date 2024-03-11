@@ -447,41 +447,9 @@ sys_pipe(void)
 /*
  * memory array functions
  */
-// insertion sort? sort by start addr, would help us when inserting new addrs
-// https://www.geeksforgeeks.org/insertion-sort/
-// void sort_mem_blocks(struct proc *p) {
-//   const int ARR_SIZE = 16;
 
-//   struct mem_block *sorted = 0;
-
-//   for (int i = 0; i < ARR_SIZE; i++) {
-//     if (p->arr[i]!= 0){
-//       continue;
-//     }
-//     struct mem_block *current = p->arr[i];
-//     p->arr[i] = p->arr[i]->next;
-
-//     if (sorted == 0 || (current->end - current->start) <= (sorted->end - sorted->start)) {
-//       current->next = sorted;
-//       sorted = current;
-//     } else {
-//       struct mem_block *temp = sorted;
-
-//       while (temp->next != 0 && (temp->next->end - temp->next->start) < (current->end - current->start)) {
-//         temp = temp->next;
-//       }
-
-//       current->next = temp->next;
-//       temp->next = current;
-
-//     }
-//     p->arr[i] = sorted;
-//   }
-// }
-
-/* Insertion Logic
-* Needs to interact with the sort_mem_block function
-* Will perform the insertion
+/*
+* Will perform the insertion in sorted order by start time. creates new mem_block to be inserted.
 */
 int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length, int numMappings) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
 // arr is initially full of null pointers (0 values), need idx of array to point to a mem_block struct with values we give in parameters to this function
