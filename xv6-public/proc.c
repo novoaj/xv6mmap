@@ -112,7 +112,19 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
   
-  p->numMappings = 0; // init field in proc
+  // p->numMappings = 0; // init field in proc
+  struct wmapinfo* wmap = (struct wmapinfo*)kalloc();
+  if (wmap == 0){
+    panic("kalloc()");
+  }
+  wmap->total_mmaps = 0;
+  p->wmapinfo = wmap; // init wmap pointer in process to point to this struct
+  // allocproc is called in fork method, rn reinitializing everything, ultimately that will depend on flags
+  // init arr to all null pointers
+  // for (int i = 0; i < 16; i++){
+  //   memblock* new_block = (mem_block*)kalloc();
+  //   p->arr[i] = 0;
+  // }
   return p;
 }
 

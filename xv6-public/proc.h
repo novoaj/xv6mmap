@@ -40,9 +40,17 @@ typedef struct mem_block {
     uint end;   // End address of the block
     int flags;
     int length;
-    struct mem_block *prev; // Pointer to the previous block
-    struct mem_block *next; // Pointer to the next block
 } mem_block;
+
+// wmapinfo struct
+// for `getwmapinfo`
+#define MAX_WMMAP_INFO 16
+struct wmapinfo {
+    int total_mmaps;                    // Total number of wmap regions
+    int addr[MAX_WMMAP_INFO];           // Starting address of mapping
+    int length[MAX_WMMAP_INFO];         // Size of mapping
+    int n_loaded_pages[MAX_WMMAP_INFO]; // Number of pages physically loaded into memory
+};
 
 // Per-process state
 struct proc {
@@ -61,7 +69,7 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   struct mem_block* arr[16];   // our memory mapping array
-  int numMappings;
+  struct wmapinfo* wmapinfo;
 
 };
 
