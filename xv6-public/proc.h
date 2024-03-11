@@ -40,6 +40,7 @@ typedef struct mem_block {
     uint end;   // End address of the block, should we add a "present block", want to do inits in proc.c rather than dynamically every insert
     int flags;
     int length;
+    int fd;
 } mem_block;
 
 // wmapinfo struct
