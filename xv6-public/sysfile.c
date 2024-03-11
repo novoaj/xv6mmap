@@ -491,19 +491,18 @@ int insert_mapping(mem_block* arr[], int size, uint start, uint end, int flags, 
     if (arr[size - 1] != 0) {
         return FAILED; // Array is full, return error code
     }
-    // new_mapping->start = start;
-    // new_mapping->end = end;
-    // new_mapping->flags = flags;
-    // new_mapping->length = length;
+    // arr[idx] is initially NULL (0), need it to point to a mem_block struct after this insert method. do we need to kalloc?
+    mem_block* new_mapping = (mem_block*)kalloc();
+    new_mapping->start = start;
+    new_mapping->end = end;
+    new_mapping->flags = flags;
+    new_mapping->length = length;
     // Find the correct position to insert the new mapping
     while (i >= 0 && arr[i] != 0 && arr[i]->start > start) {
         // Check if the new mapping fits between the end of the previous mapping and the start of the next mapping
         if (i > 0 && arr[i - 1] != 0 && (arr[i - 1]->end + 1) >= start && arr[i]->start <= (start + length)) {
             // Insert the new mapping at the correct position
-            arr[i + 1]->start = start;
-            arr[i + 1]->end = end;
-            arr[i + 1]->flags = flags;
-            arr[i + 1]->length = length;
+            arr[i + 1] = new_mapping;
 
             return arr[i+1]->start;
         }
@@ -511,10 +510,7 @@ int insert_mapping(mem_block* arr[], int size, uint start, uint end, int flags, 
         i--;
     }
     // Insert the new mapping at the correct position
-    arr[i + 1]->start = start;
-    arr[i + 1]->end = end;
-    arr[i + 1]->flags = flags;
-    arr[i + 1]->length = length;
+    arr[i + 1] = new_mapping;
     // Check if the new mapping goes beyond MAX_ADDR
     if (arr[i+1]->start + arr[i+1]->length > MAX_ADDR) {
         return FAILED; // Return error code
