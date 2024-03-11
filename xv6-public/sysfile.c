@@ -486,8 +486,11 @@ sys_pipe(void)
 int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length, int numMappings) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
 // arr is initially full of null pointers (0 values), need idx of array to point to a mem_block struct with values we give in parameters to this function
     cprintf("inserting into mmap\n");
-    
-    // Check if the array is already full
+    // We already check in the FIXED flag case if the required addr is going to fit
+    // We also find the leftmost ADDR that will fit in our mmap when calling it from the ELSE condition
+    // Means we just need to find the index that this new mapping belongs, and move other mem_block pointers to make space for this new one
+
+    // if arr is full
     if (numMappings == MAX_WMMAP_INFO) {
       cprintf("can't add any more memory mappings\n");
       return FAILED; // Array is full, return error code
@@ -500,21 +503,25 @@ int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length
     new_mapping->length = length;
     // find index to insert into
     int i = 0; // Start from the first element of the array
-    if (numMappings == 0){
-      cprintf("block inserted - start: %x, end: %x, length: %d, flags: %d\n", start, end, flags, length);
+
+    if (numMappings == 0){ // empty case
       arr[0] = new_mapping;
+      cprintf("block inserted - start: %x, end: %x, length: %d, flags: %d\n", start, end, flags, length);
       return arr[0]->start;
     }
+    // find correct idx to insert, if already something at idx, move to idx+1 and all the ones to the right as well
+    // want to sort by start addr
     // Find the correct position to insert the new mapping
-    while (i >= 0 && arr[i] != 0 && arr[i]->start > start) {
+    while (i < MAX_WMMAP_INFO && arr[i] != 0 && arr[i]->start > start) {
         // Check if the new mapping fits between the end of the previous mapping and the start of the next mapping
         if (i > 0 && arr[i - 1] != 0 && (arr[i - 1]->end + 1) >= start && arr[i]->start <= (end)) {
             // Insert the new mapping at the correct position
             arr[i + 1] = new_mapping;
+            cprintf("inserting mapping aat idx: %d\n", i+1);
             return arr[i+1]->start;
         }
-        arr[i + 1] = arr[i]; // Move elements greater than new_mapping to the right
-        i--;
+        arr[i] = arr[i+1]; // Move elements greater than new_mapping to the right
+        i++;
     }
     // Insert the new mapping at the correct position
     arr[i + 1] = new_mapping;
@@ -523,7 +530,7 @@ int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length
         kfree((char*)new_mapping);
         return FAILED; // Return error code
     }
-    cprintf("iteration: %d\n", i);
+    cprintf("inserted at idx: %d\n", i+1);
     cprintf("block inserted - start: %x, end: %x, length: %d, flags: %d\n", start, end, flags, length);
     return arr[i+1]->start;
 }
@@ -600,44 +607,46 @@ sys_wmap(void){
     p->wmapinfo->n_loaded_pages[p->wmapinfo->total_mmaps] = PGROUNDUP(length) / PGSIZE;
     p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGROUNDUP(length);
     p->wmapinfo->total_mmaps++;
+    // print array after insert:
+    for (int i = 0; i < MAX_WMMAP_INFO; i++){
+      cprintf("%p\n",p->arr[i]);
+    }
     return insertAddr;
   } else{
     // not map fixed, we find place for insert
-    // if array is full
-    if (p->arr[15] != 0){
+    // check if array is full
+    int numMappings = p->wmapinfo->total_mmaps;
+    if (numMappings == MAX_WMMAP_INFO){
         return FAILED;
     }
-    int leftmostAddr = 0;
-    int end = addr + PGROUNDUP(length) - 1;
-    cprintf("leftmostaddr before calculation: %d\n", leftmostAddr);
+    // find leftmost available place to insert the new mapping
+    int prevEnd = MIN_ADDR - 1;
+    int curStart = MIN_ADDR; 
+    uint leftmostAddr = MIN_ADDR; // initially minimum address
+    cprintf("leftmostaddr before calculation: %x\n", leftmostAddr);
     // if array is empty
-    if (p->arr[0] == 0){
-      cprintf("p->arr[0]: %p\n", p->arr[0]);
-      if (MIN_ADDR + length <= MAX_ADDR){
-        leftmostAddr = MIN_ADDR;
-      }else{
-        return FAILED;
+    for (int i = 0; i < MAX_WMMAP_INFO; i++){
+      // at each iteration, prevEnd will hold the i-1->endAddr curStart will hold the ith startAddr
+      // if curStart - prevEnd > PGROUNDUP(length), then there is enough room to fit the block starting at prevEnd + 1
+
+      // if this pointer is null, we can assign it to prevEnd+1
+      if (p->arr[i] == 0) {
+        leftmostAddr = prevEnd + 1;
+        break; 
       }
-    }else{
-      leftmostAddr = MAX_ADDR;
-      // iter through array to find leftmost block our mapping will fit
-      for (int i = 0; i < 16; i++) {
-        if (p->arr[i] != 0){
-          if (i==0 || (p->arr[i]->start - p->arr[i-1]->end) >= PGROUNDUP(length)){
-            if (p->arr[i]->end + 1 + length <= MAX_ADDR) {
-              leftmostAddr = p->arr[i]->end + 1;
-              break;
-            }else{
-              return FAILED;
-            }
-          }
-        }
+      curStart = p->arr[i]->start; // we know that ith element of array is nonnull
+      if (curStart - prevEnd > PGROUNDUP(length)){ // can we fit our mapping between the ith and i-1 mappings?
+        leftmostAddr = prevEnd + 1;
       }
-      if (end > MAX_ADDR){
-        return FAILED;
-      }
-      }
+      
+      // increment prevEnd
+      prevEnd = p->arr[i]->end;
+    }
+    cprintf("leftmostaddr after new calculation: %x\n", leftmostAddr);
+
+      int end = leftmostAddr + PGROUNDUP(length) - 1;
       // TODO insert at leftmostAddr in our array of mappings
+      cprintf("inserting at leftmostAddr: %x, end: %x\n", leftmostAddr, end);
       uint insertAddr = insert_mapping((mem_block**)&p->arr, leftmostAddr, end, flags, length, p->wmapinfo->total_mmaps);
       if (insertAddr == FAILED){
         return FAILED;
@@ -647,6 +656,10 @@ sys_wmap(void){
       p->wmapinfo->n_loaded_pages[p->wmapinfo->total_mmaps] = PGROUNDUP(length) / PGSIZE;
       p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGROUNDUP(length);
       p->wmapinfo->total_mmaps++;
+      // print array after insert:
+      for (int i = 0; i < MAX_WMMAP_INFO; i++){
+        cprintf("%p\n",p->arr[i]);
+      }
       return insertAddr;
     
     }

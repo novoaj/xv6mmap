@@ -11,5 +11,7 @@ int main(void)
     printf(1,"%x\n", address);
     uint address2 = wmap(0x60000000, 8192, MAP_ANONYMOUS, -1);
     printf(1,"%x\n", address2);
+    uint address3 = wmap(0x60000000, 10000, MAP_ANONYMOUS, -1);
+    printf(1,"%x\n", address3);
     exit();
 } 
