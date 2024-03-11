@@ -571,11 +571,22 @@ sys_wmap(void){
     if (addr % PGSIZE != 0){
       return FAILED;
     }
+    uint end = addr + PGROUNDUP(length) - 1;
     // TODO check if provided addr is going to fit in our existing mmappings
-
+    for (int i = 0; i < MAX_WMMAP_INFO; i++){
+      if (p->arr[i] != 0){
+        // will this mapping overlap with an existing one?
+        if (addr > p->arr[i]->start && addr < p->arr[i]->end){ // start doesn't fall in the middle of an existing mapping
+          return FAILED;
+        }
+        if (end > p->arr[i]->start && end < p->arr[i]->end){ // end doesn't fall in the middle of an existing mapping
+          return FAILED;
+        }
+      }
+    }
     // p->arr; // array of length 16, should hold our mmappings
     int pagesNeeded = PGROUNDUP(length) / PGSIZE;
-    uint end = addr + PGROUNDUP(length) - 1;
+    
     
     uint startAddr = addr;
     // mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
@@ -631,14 +642,15 @@ sys_wmap(void){
 
       // if this pointer is null, we can assign it to prevEnd+1
       if (p->arr[i] == 0) {
+        cprintf("should insert at idx: %d\n", i);
         leftmostAddr = prevEnd + 1;
         break; 
       }
       curStart = p->arr[i]->start; // we know that ith element of array is nonnull
       if (curStart - prevEnd > PGROUNDUP(length)){ // can we fit our mapping between the ith and i-1 mappings?
+        cprintf("should insert at idx: %d\n", i);
         leftmostAddr = prevEnd + 1;
       }
-      
       // increment prevEnd
       prevEnd = p->arr[i]->end;
     }
