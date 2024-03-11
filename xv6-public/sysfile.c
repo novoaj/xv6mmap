@@ -670,6 +670,6 @@ sys_wunmap(void) {
   // TODO: MAP_ANONYMOUS means this mapping is not file backed
   // NOTE: these ^ don't neccesarily happen here, most logic is probably going to be written in fork or exit or allocproc. 
   // TODO: consider flags (if MAP_SHARED, write mem data back to the file)
-  // TODO: write remove method for out mmap array
+  // TODO: write remove method for out mmap array (needs to keep array in order and contiguous - no holes in array, when removing ith index, i+1 onward should shift left in arr)
   return -1;
 }
