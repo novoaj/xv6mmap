@@ -304,6 +304,27 @@ fork(void)
   return pid;
 }
 
+// Helper method for exit 
+void cleanup_wmapinfo(struct proc *p) {
+  for (int i = 0; i < p->wmapinfo->total_mmaps; i++) {
+    struct mem_block *mapping = p->arr[i];
+    if (!mapping) {
+      continue;
+    }
+
+    if (mapping->flags & MAP_SHARED) {
+      // TODO free the shared mapping, will be tricky to free shared allocations
+    }
+    else if (mapping->flags & MAP_PRIVATE) {
+      // TODO free the individual mapping, realatively simple to free this mapping
+    }
+
+    kfree((char*)mapping);
+    p->arr[i] = 0;
+  }
+  p->wmapinfo->total_mmaps = 0;
+}
+
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
