@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "wmap.h"
 
 struct {
   struct spinlock lock;
@@ -228,7 +229,7 @@ void duplicate_private_mapping(struct proc *child, struct mem_block *mapping) {
 
 void add_shared_mapping(struct proc *child, struct mem_block *mapping) {
   uint va;
-  pte_t *pte_parent, *pte_child;
+  pte_t *pte_parent;
   for (va = mapping->start; va < mapping->end; va += PGSIZE) {
     // Retrieve the parent's page table entry for the current virtual address
     pte_parent = walkpgdir(child->pgdir, (void *) va, 0);
@@ -282,10 +283,15 @@ fork(void)
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   // Allows inheritance of maps depending on MAP_PRIVATE or MAP_SHARED flags
-  // for (i = 0; i <curproc->wmapinfo->total_mmaps; i++) {
-  //   // Placeholder mapping
-  //   struct mem_block *cur_mapping = &curproc->wmapinfo
-  // }
+  for (int i = 0; i < curproc->wmapinfo->total_mmaps; i++) {
+      struct mem_block *cur_mapping = curproc->arr[i];
+      
+    if (cur_mapping->flags & MAP_PRIVATE) {
+        duplicate_private_mapping(np, cur_mapping);
+    } else if (cur_mapping->flags & MAP_SHARED) {
+        add_shared_mapping(np, cur_mapping);
+    }
+  }
 
   pid = np->pid;
 
