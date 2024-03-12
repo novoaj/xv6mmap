@@ -77,6 +77,9 @@ struct proc {
 
 };
 
+// Header declarations for fork helper functions
+void duplicate_private_mapping(struct proc *child, struct mem_block *mapping);
+void add_shared_mapping(struct proc *child, struct mem_block *mapping);
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss

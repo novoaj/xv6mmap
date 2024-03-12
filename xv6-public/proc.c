@@ -193,6 +193,39 @@ growproc(int n)
   return 0;
 }
 
+// Helper functions for mapping in fork
+extern char data[];
+extern pde_t *kpgdir; 
+
+void duplicate_private_mapping(struct proc *child, struct mem_block *mapping) {
+
+  uint va, pa;
+  pte_t *pte;
+  char *mem;
+
+  for (va = mapping->start; va < mapping->end; va += PGSIZE) {
+    // Error checking
+    if ((pte = walkpgdir(child->pgdir, (void *) va, 0)) == 0) {
+      panic("duplicate mapping: pte should exist");
+    }
+    if ((*pte & PTE_P) == 0) {
+      panic("duplicate mapping: page not present");
+    }
+    pa = PTE_ADDR(*pte);
+
+    if ((mem = kalloc()) == 0) {
+      panic("duplicate mapping: kalloc failed");
+    }
+    // Copy data from parent to child
+    memmove(mem, (char*)P2V(pa), PGSIZE);
+
+    if (mappages(child->pgdir, (void*)va, PGSIZE, V2P(mem), PTE_FLAGS(*pte)) < 0) {
+      panic("duplicate mapping: mappages failed");
+    }
+  }
+
+}
+
 // Create a new process copying p as the parent.
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
@@ -230,6 +263,12 @@ fork(void)
   np->cwd = idup(curproc->cwd);
 
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
+
+  // Allows inheritance of maps depending on MAP_PRIVATE or MAP_SHARED flags
+  // for (i = 0; i <curproc->wmapinfo->total_mmaps; i++) {
+  //   // Placeholder mapping
+  //   struct mem_block *cur_mapping = &curproc->wmapinfo
+  // }
 
   pid = np->pid;
 
