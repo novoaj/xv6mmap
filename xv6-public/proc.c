@@ -289,6 +289,8 @@ fork(void)
     if (cur_mapping->flags & MAP_PRIVATE) {
         duplicate_private_mapping(np, cur_mapping);
     } else if (cur_mapping->flags & MAP_SHARED) {
+      // TODO need to add reference update when a mapping
+      // is forked so that exit can properly close mappings
         add_shared_mapping(np, cur_mapping);
     }
   }
