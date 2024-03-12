@@ -320,12 +320,32 @@ void cleanup_wmapinfo(struct proc *p) {
     }
     else if (mapping->flags & MAP_PRIVATE) {
       // TODO free the individual mapping, realatively simple to free this mapping
+      free_physical_pages(p, mapping);
     }
 
     kfree((char*)mapping);
     p->arr[i] = 0;
   }
   p->wmapinfo->total_mmaps = 0;
+}
+// Helper method for helper lol
+void free_physical_pages(struct proc *p, struct mem_block *mapping) {
+  for (uint va = mapping->start; va < mapping->end; va += PGSIZE) {
+    pte_t *pte = walkpgdir(p->pgdir, (void *)va, 0);
+    if (!pte || !(*pte & PTE_P)) {
+      // No mapping present
+      continue;
+    }
+    uint pa = PTE_ADDR(*pte);
+    // Physical address to kernel va
+    char* v = P2V(pa);
+    // free the physcial pages
+    kfree(v);
+
+    // Clear page table entry
+    *pte = 0;
+
+  }
 }
 
 // Exit the current process.  Does not return.
