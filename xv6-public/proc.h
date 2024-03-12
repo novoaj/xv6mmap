@@ -81,6 +81,7 @@ struct proc {
 // Header declarations for fork helper functions
 void duplicate_private_mapping(struct proc *child, struct mem_block *mapping);
 void add_shared_mapping(struct proc *child, struct mem_block *mapping);
+void increment_mapping_ref_count(struct mem_block *mapping);
 // Header declarations for a exit helper function
 void cleanup_wmapinfo(struct proc *p);
 // Helper for that ^^ helper
