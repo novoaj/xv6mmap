@@ -314,6 +314,9 @@ void cleanup_wmapinfo(struct proc *p) {
 
     if (mapping->flags & MAP_SHARED) {
       // TODO free the shared mapping, will be tricky to free shared allocations
+      // Tried and failed at solving this for a while
+      // This helper method could probabaly use more helper methods itsefl
+      // This should mean that this function is called in exit to clean up 
     }
     else if (mapping->flags & MAP_PRIVATE) {
       // TODO free the individual mapping, realatively simple to free this mapping
