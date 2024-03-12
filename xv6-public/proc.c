@@ -198,6 +198,10 @@ growproc(int n)
 extern char data[];
 extern pde_t *kpgdir; 
 
+void increment_mapping_ref_count(struct mem_block *mapping) {
+    mapping->ref++;
+}
+
 void duplicate_private_mapping(struct proc *child, struct mem_block *mapping) {
 
   uint va, pa;
@@ -292,6 +296,7 @@ fork(void)
       // TODO need to add reference update when a mapping
       // is forked so that exit can properly close mappings
         add_shared_mapping(np, cur_mapping);
+        increment_mapping_ref_count(cur_mapping);
     }
   }
 
