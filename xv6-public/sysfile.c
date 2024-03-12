@@ -450,15 +450,16 @@ sys_pipe(void)
 
 /*
 * Will perform the insertion in sorted order by start time. creates new mem_block to be inserted.
-* relies on wmap to check if the interval: (start, end) will fit into mmap BEFORE calling insert_mapping. 
+* relies on wmap to check if the interval: (start, end) will fit into mmap BEFORE calling insert_mapping.
+* this function will also update out wmapinfo struct 
 */
-int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length, int numMappings, int fd) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
+int insert_mapping(uint start, uint end, int flags, int length, int numMappings, int fd) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
 // arr is initially full of null pointers (0 values), need idx of array to point to a mem_block struct with values we give in parameters to this function
     cprintf("inserting into mmap\n");
     // We already check in the FIXED flag case if the required addr is going to fit
     // We also find the leftmost ADDR that will fit in our mmap when calling it from the ELSE condition
     // Means we just need to find the index that this new mapping belongs, and move other mem_block pointers to make space for this new one
-
+    struct proc* p = myproc();
     // if arr is full
     if (numMappings == MAX_WMMAP_INFO) {
       cprintf("can't add any more memory mappings\n");
@@ -478,20 +479,32 @@ int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length
     // find index to insert into
 
     if (numMappings == 0){ // empty case
-      arr[0] = new_mapping;
+      p->arr[0] = new_mapping;
+      p->wmapinfo->addr[0] = p->arr[0]->start;
+      p->wmapinfo->length[0] = p->arr[0]->length;
+      p->wmapinfo->n_loaded_pages[0] = PGROUNDUP(p->arr[0]->length) / PGSIZE;
+      p->wmapinfo->total_mmaps = p->wmapinfo->total_mmaps + 1;
       cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", 0, start, end, flags, length);
-      return arr[0]->start;
+      return p->arr[0]->start;
     }
     // find correct idx to insert, if already something at idx, move to idx+1 and all the ones to the right as well
     // want to sort by start addr
     // Find the correct position to insert the new mapping
     int insert_idx = numMappings;
-    while (insert_idx > 0 && arr[insert_idx - 1]->start > start) { // if ith mapping belongs before i-1 mapping, shift i-1 to i (right shift)
-      arr[insert_idx] = arr[insert_idx - 1];
+    while (insert_idx > 0 && p->arr[insert_idx - 1]->start > start) { // if ith mapping belongs before i-1 mapping, shift i-1 to i (right shift)
+      p->arr[insert_idx] = p->arr[insert_idx - 1];
+      p->wmapinfo->addr[insert_idx] = p->wmapinfo->addr[insert_idx - 1];
+      p->wmapinfo->length[insert_idx] = p->wmapinfo->length[insert_idx - 1];
+      p->wmapinfo->n_loaded_pages[insert_idx] = p->wmapinfo->n_loaded_pages[insert_idx - 1];
+
       insert_idx--;
     }
     // insert mapping
-    arr[insert_idx] = new_mapping;
+    p->arr[insert_idx] = new_mapping;
+    p->wmapinfo->addr[insert_idx] = p->arr[insert_idx]->start;
+    p->wmapinfo->length[insert_idx] = p->arr[insert_idx]->length;
+    p->wmapinfo->n_loaded_pages[insert_idx] = PGROUNDUP(p->arr[insert_idx]->length) / PGSIZE;
+    p->wmapinfo->total_mmaps = p->wmapinfo->total_mmaps + 1;
     cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", insert_idx, start, end, flags, length);
     return new_mapping->start;
 }
@@ -545,16 +558,11 @@ sys_wmap(void){
     }
     // insert operation into array
     cprintf("inserting new mapping: start: %x, end: %x, flags: %d\n", addr, end, flags);
-    uint insertAddr = insert_mapping((mem_block**)&p->arr, addr, end, flags, length, p->wmapinfo->total_mmaps, fd);
+    uint insertAddr = insert_mapping(addr, end, flags, PGROUNDUP(length), p->wmapinfo->total_mmaps, fd);
     
     if (insertAddr == FAILED){ // successful insert?
       return FAILED;
     }
-    // succesful insert, update wmapinfo
-    p->wmapinfo->addr[p->wmapinfo->total_mmaps] = insertAddr;
-    p->wmapinfo->n_loaded_pages[p->wmapinfo->total_mmaps] = PGROUNDUP(length) / PGSIZE;
-    p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGROUNDUP(length);
-    p->wmapinfo->total_mmaps++;
     // print array after insert:
     cprintf("\n\narray after inserting: \n\n");
     for (int i = 0; i < MAX_WMMAP_INFO; i++){
@@ -594,15 +602,15 @@ sys_wmap(void){
       int end = leftmostAddr + PGROUNDUP(length) - 1;
       // TODO insert at leftmostAddr in our array of mappings
       cprintf("inserting at leftmostAddr: %x, end: %x\n", leftmostAddr, end);
-      uint insertAddr = insert_mapping((mem_block**)&p->arr, leftmostAddr, end, flags, length, p->wmapinfo->total_mmaps, fd);
+      uint insertAddr = insert_mapping(leftmostAddr, end, flags, PGROUNDUP(length), p->wmapinfo->total_mmaps, fd);
       if (insertAddr == FAILED){
         return FAILED;
       }
       // succesful insert, update wmapinfo
-      p->wmapinfo->addr[p->wmapinfo->total_mmaps] = insertAddr;
-      p->wmapinfo->n_loaded_pages[p->wmapinfo->total_mmaps] = PGROUNDUP(length) / PGSIZE;
-      p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGROUNDUP(length);
-      p->wmapinfo->total_mmaps++;
+      // p->wmapinfo->addr[p->wmapinfo->total_mmaps] = insertAddr;
+      // p->wmapinfo->n_loaded_pages[p->wmapinfo->total_mmaps] = PGROUNDUP(length) / PGSIZE;
+      // p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGROUNDUP(length);
+      // p->wmapinfo->total_mmaps++;
 
       // print array after insert:
       cprintf("\n\narray after inserting: \n\n");
@@ -700,7 +708,7 @@ int sys_getpgdirinfo(){
           cprintf("PTE_ADDR(*pte): %x\n", PTE_ADDR(*pte));
           cprintf("*pte: %x\n", *pte);
           cprintf("*pte - PTE_ADDR(*pte): %x\n\n", *pte - PTE_ADDR(*pte));
-          uint offset = *pte - PTE_ADDR(*pte);
+          uint offset = *pte - PTE_ADDR(*pte); // offset is 0
           // is this offset^
           uint va = PGADDR(i, j, offset); // finds va, need to find OFFSET to get va
           // va has 32 bits -> 10 for PDI, 10 for PTI, 12 for offset
