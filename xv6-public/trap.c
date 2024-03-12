@@ -78,9 +78,26 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   // Add T_PGFLT
-  // case T_PGFLT: // T_PGFLT = 14
+  case T_PGFLT: // T_PGFLT = 14
   //    if page fault addr is part of a mapping: // lazy allocation
-        // handle it
+    uint faultyAddr = rcr2();
+    int inMapping = 0;
+    struct proc* p = myproc();
+    // find if page is in mapping
+    for (int i = 0; i < MAX_WMMAP_INFO; i++){
+      if (p->arr[i] != 0){ // is this faultyAddr a part of an existing mapping?
+        if (faultyAddr > p->arr[i]->start && faultyAddr < p->arr[i]->end){
+          inMapping = 1;
+          break;
+        }
+      }
+    }
+    if (inMapping){
+      // handle page fault
+      cprintf("handle page fault at addr: %x\n", faultyAddr);
+    }else{
+      cprintf("Segmentation Fault\n");
+    }
 
 
   //PAGEBREAK: 13
