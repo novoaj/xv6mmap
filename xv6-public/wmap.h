@@ -15,11 +15,23 @@
 #define MAX_ADDR 0x80000000
 
 // for `getpgdirinfo`
+#ifndef XV6_PGDIR_INFO_GUARD
+#define XV6_PGDIR_INFO_GUARD
 #define MAX_UPAGE_INFO 32
 struct pgdirinfo {
     uint n_upages;           // the number of allocated physical pages in the process's user address space
     uint va[MAX_UPAGE_INFO]; // the virtual addresses of the allocated physical pages in the process's user address space
     uint pa[MAX_UPAGE_INFO]; // the physical addresses of the allocated physical pages in the process's user address space
 };
-
-
+#endif
+// for `getwmapinfo`
+#ifndef XV6_WMAP_INFO_GUARD
+#define XV6_WMAP_INFO_GUARD
+#define MAX_WMMAP_INFO 16
+struct wmapinfo {
+    int total_mmaps;                    // Total number of wmap regions
+    int addr[MAX_WMMAP_INFO];           // Starting address of mapping
+    int length[MAX_WMMAP_INFO];         // Size of mapping
+    int n_loaded_pages[MAX_WMMAP_INFO]; // Number of pages physically loaded into memory
+};
+#endif

@@ -45,6 +45,8 @@ typedef struct mem_block {
 
 // wmapinfo struct
 // for `getwmapinfo`
+#ifndef XV6_WMAP_INFO_GUARD
+#define XV6_WMAP_INFO_GUARD
 #define MAX_WMMAP_INFO 16
 struct wmapinfo {
     int total_mmaps;                    // Total number of wmap regions
@@ -52,6 +54,7 @@ struct wmapinfo {
     int length[MAX_WMMAP_INFO];         // Size of mapping
     int n_loaded_pages[MAX_WMMAP_INFO]; // Number of pages physically loaded into memory
 };
+#endif
 
 // Per-process state
 struct proc {
