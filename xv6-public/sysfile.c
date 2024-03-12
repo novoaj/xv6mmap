@@ -680,6 +680,14 @@ uint sys_wremap(){
 }
 
 int sys_getpgdirinfo(){
+  struct pgdirinfo* pdinfo;
+  argptr(0, (char**)&pdinfo, sizeof(struct pgdirinfo*));
+
+  if (pdinfo == 0){ // NULL pointer
+    return FAILED;
+  }
+  // fill in struct from this proc pgdir - use myproc, look at pgdir field
+
   return -1;
 }
 
