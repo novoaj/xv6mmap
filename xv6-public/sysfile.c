@@ -664,6 +664,7 @@ sys_wunmap(void) {
   if (mappingExists == 0){ // no existing mapping with start = addr
     return FAILED;
   }
+  cprintf("mapping to remove at idx: %d\n", location);
   // p->arr[location]; // points to the mem_block we need to remove. check flags and see if file backed. if file backed, write to file
   // TODO: MAP_PRIVATE case requires us to go into fork or allocproc to copy over new mem mappings (Same virtual addrs but need to generate new physical ones for child process)
   // TODO: MAP_SHARED means this mapping is file backed
@@ -674,7 +675,7 @@ sys_wunmap(void) {
   return -1;
 }
 
-int sys_wremap(){
+uint sys_wremap(){
   return -1;
 }
 
