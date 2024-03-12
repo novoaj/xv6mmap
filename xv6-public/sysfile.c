@@ -548,6 +548,7 @@ sys_wmap(void){
     int pagesNeeded = PGROUNDUP(length) / PGSIZE;
     uint startAddr = addr;
     // mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
+    // this is the logic for allocating physical memory for our virtual
     for (int i = 0; i < pagesNeeded; i++){
       char* mem;
       mem = kalloc(); // kalloc to give us va that maps to pa
@@ -650,6 +651,7 @@ sys_wunmap(void) {
   }
   // must be start of an existing mmap
   struct proc* p = myproc();
+  mem_block* toFree;
   int mappingExists = 0;
   int location = 0;
   for (int i = 0; i < p->wmapinfo->total_mmaps; i++){
@@ -657,6 +659,7 @@ sys_wunmap(void) {
     if (p->arr[i]->start == addr){
       mappingExists = 1;
       location = i;
+      toFree = p->arr[i];
       break;
     }
   }
@@ -664,6 +667,15 @@ sys_wunmap(void) {
   if (mappingExists == 0){ // no existing mapping with start = addr
     return FAILED;
   }
+
+  // if NOT MAP_ANON and NOT MAP_PRIVATE: write to file BEFORE unmapping
+  if ((toFree->flags & MAP_ANONYMOUS) == 0 && (toFree->flags & MAP_PRIVATE) == 0){
+    // if neither of these flags are set, write to file
+    struct file* f = toFree->fd;
+    filewrite(f, (void*)toFree->start, toFree->length);
+  }
+  // remove mapping in PT (walk pg dir) - keep in mind can be multiple pages
+  // remove mapping from data structure (remove operetion on p->arr)
   cprintf("mapping to remove at idx: %d\n", location);
   // p->arr[location]; // points to the mem_block we need to remove. check flags and see if file backed. if file backed, write to file
   // TODO: MAP_PRIVATE case requires us to go into fork or allocproc to copy over new mem mappings (Same virtual addrs but need to generate new physical ones for child process)
@@ -672,7 +684,7 @@ sys_wunmap(void) {
   // NOTE: these ^ don't neccesarily happen here, most logic is probably going to be written in fork or exit or allocproc. 
   // TODO: consider flags (if MAP_SHARED, write mem data back to the file)
   // TODO: write remove method for out mmap array (needs to keep array in order and contiguous - no holes in array, when removing ith index, i+1 onward should shift left in arr)
-  return -1;
+  return SUCCESS;
 }
 
 uint sys_wremap(){
@@ -687,8 +699,11 @@ int sys_getpgdirinfo(){
     return FAILED;
   }
   // fill in struct from this proc pgdir - use myproc, look at pgdir field
+  // struct proc* p = myproc();
+  // for (int i = 0; i < MAX_UPAGE_INFO; i++){
 
-  return -1;
+  // }
+  return SUCCESS;
 }
 
 int sys_getwmapinfo(){
@@ -708,5 +723,5 @@ int sys_getwmapinfo(){
   }
 
   // use wmap struct from our process to fill in wminfo
-  return -1;
+  return SUCCESS;
 }
