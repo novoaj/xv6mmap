@@ -85,16 +85,40 @@ trap(struct trapframe *tf)
     uint faultyAddr = rcr2();
     int inMapping = 0;
     struct proc* p = myproc();
+    mem_block* mapping;
     // find if page is in mapping
     for (int i = 0; i < MAX_WMMAP_INFO; i++){
       if (p->arr[i] != 0){ // is this faultyAddr a part of an existing mapping?
         if (faultyAddr >= p->arr[i]->start && faultyAddr <= p->arr[i]->end){
           inMapping = 1;
+          mapping = p->arr[i];
           break;
         }
       }
     }
     if (inMapping){
+      uint startAddr = mapping->start;
+      int pagesNeeded = PGROUNDUP(mapping->length) / PGSIZE;
+
+       // mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
+      // this is the logic for allocating physical memory for our virtual
+      for (int i = 0; i < pagesNeeded; i++){
+        char* mem;
+        mem = kalloc(); // kalloc to give us va that maps to pa
+        if (mem == 0){
+          panic("kalloc");
+        }
+        memset(mem, 0, PGSIZE);
+        cprintf("calling mappages with pgdir = %p, va: %x, size: %d, pa: %x perm: %d\n", p->pgdir, startAddr, PGSIZE, V2P(mem), PTE_W | PTE_U);
+        if (mappages(p->pgdir, (void*) startAddr, PGSIZE, V2P(mem), PTE_W | PTE_U) != 0){
+          cprintf("mappages failed\n");
+          kfree(mem);
+        }
+        startAddr = startAddr + PGSIZE; // increment va to map to physical
+        cprintf("startAddr: %x\n", startAddr);
+      }
+
+
       // handle page fault - map virtual to physical memory, do we write to file in page fault case?
       // does this mean we copy over va->phys logic here (code that loops and users kalloc and mappages)
       cprintf("handle page fault at addr: %x\n", faultyAddr);

@@ -543,27 +543,6 @@ sys_wmap(void){
         }
       }
     }
-
-    int pagesNeeded = PGROUNDUP(length) / PGSIZE;
-    uint startAddr = addr;
-    // mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
-    // this is the logic for allocating physical memory for our virtual
-    for (int i = 0; i < pagesNeeded; i++){
-      char* mem;
-      mem = kalloc(); // kalloc to give us va that maps to pa
-      if (mem == 0){
-        panic("kalloc");
-      }
-      memset(mem, 0, PGSIZE);
-      cprintf("calling mappages with pgdir = %p, va: %x, size: %d, pa: %x perm: %d\n", p->pgdir, addr, PGSIZE, V2P(mem), PTE_W | PTE_U);
-      if (mappages(p->pgdir, (void*) startAddr, PGSIZE, V2P(mem), PTE_W | PTE_U) != 0){
-        cprintf("mappages failed\n");
-        kfree(mem);
-      }
-      startAddr = startAddr + PGSIZE; // increment va to map to physical
-      cprintf("startAddr: %x\n", startAddr);
-    }
-
     // insert operation into array
     cprintf("inserting new mapping: start: %x, end: %x, flags: %d\n", addr, end, flags);
     uint insertAddr = insert_mapping((mem_block**)&p->arr, addr, end, flags, length, p->wmapinfo->total_mmaps, fd);
@@ -612,7 +591,6 @@ sys_wmap(void){
       prevEnd = p->arr[i]->end;
     }
     cprintf("leftmostaddr after new calculation: %x\n", leftmostAddr);
-
       int end = leftmostAddr + PGROUNDUP(length) - 1;
       // TODO insert at leftmostAddr in our array of mappings
       cprintf("inserting at leftmostAddr: %x, end: %x\n", leftmostAddr, end);
