@@ -455,28 +455,28 @@ sys_pipe(void)
 */
 int insert_mapping(uint start, uint end, int flags, int length, int numMappings, int fd) { // need to pass in start, end, flags, etc. to init mem_block struct to add to array
 // arr is initially full of null pointers (0 values), need idx of array to point to a mem_block struct with values we give in parameters to this function
-    cprintf("inserting into mmap\n");
-    // We already check in the FIXED flag case if the required addr is going to fit
-    // We also find the leftmost ADDR that will fit in our mmap when calling it from the ELSE condition
-    // Means we just need to find the index that this new mapping belongs, and move other mem_block pointers to make space for this new one
-    struct proc* p = myproc();
-    // if arr is full
-    if (numMappings == MAX_WMMAP_INFO) {
-      cprintf("can't add any more memory mappings\n");
-      return FAILED; // Array is full, return error code
-    }
-    // arr[idx] is initially NULL (0), need it to point to a mem_block struct after this insert method. do we need to kalloc?
-    mem_block* new_mapping = (mem_block*)kalloc();
-    if (new_mapping == 0){
-      panic("kalloc()");
-      return FAILED;
-    }
-    new_mapping->start = start;
-    new_mapping->end = end;
-    new_mapping->flags = flags;
-    new_mapping->length = length;
-    new_mapping->fd = fd;
-    // find index to insert into
+  cprintf("inserting into mmap\n");
+  // We already check in the FIXED flag case if the required addr is going to fit
+  // We also find the leftmost ADDR that will fit in our mmap when calling it from the ELSE condition
+  // Means we just need to find the index that this new mapping belongs, and move other mem_block pointers to make space for this new one
+  struct proc* p = myproc();
+  // if arr is full
+  if (numMappings == MAX_WMMAP_INFO) {
+    cprintf("can't add any more memory mappings\n");
+    return FAILED; // Array is full, return error code
+  }
+  // arr[idx] is initially NULL (0), need it to point to a mem_block struct after this insert method. do we need to kalloc?
+  mem_block* new_mapping = (mem_block*)kalloc();
+  if (new_mapping == 0){
+    panic("kalloc()");
+    return FAILED;
+  }
+  new_mapping->start = start;
+  new_mapping->end = end;
+  new_mapping->flags = flags;
+  new_mapping->length = length;
+  new_mapping->fd = fd;
+  // find index to insert into
 
     if (numMappings == 0){ // empty case
       p->arr[0] = new_mapping;
@@ -507,6 +507,39 @@ int insert_mapping(uint start, uint end, int flags, int length, int numMappings,
     // p->wmapinfo->n_loaded_pages[insert_idx] = PGROUNDUP(p->arr[insert_idx]->length) / PGSIZE;
     cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", insert_idx, start, end, flags, length);
     return new_mapping->start;
+}
+
+/*
+ * Remove mapping for wunmap. This method should find the target address remove the
+ * page table and left shift the other page table entries left to keep them sorted
+ */
+int remove_mapping(uint addr) {
+  // TODO add sorted remove for wunmap
+  struct proc *p = myproc();
+  int found = -1;
+
+  // Locate the address to remove
+  for (int i = 0; i < MAX_WMMAP_INFO; i++) {
+    if (p->arr[i] != 0 && p->arr[i]->start == addr) {
+      found = i;
+      break;
+    }
+  }
+
+  // Remove page table mapping
+  mem_block *mapping = p->arr[found];
+  for (uint va = mapping->start; va < mapping->end; va += PGSIZE) {
+    pte_t *pte = walkpgdir(p->pgdir, (void *)va, 0);
+    if (pte && (*pte & PTE_P)) {
+      // Clear the page table entry
+      *pte = 0;
+    }
+  }
+  // Preforem left shit to fill the gap
+  for (int i = found; i < MAX_WMMAP_INFO - 1; i++) {
+    p->arr[i] = p->arr[i + 1];
+  }
+  return 1;
 }
 
 /*
