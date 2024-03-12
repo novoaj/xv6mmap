@@ -490,7 +490,6 @@ int insert_mapping(mem_block* arr[], uint start, uint end, int flags, int length
       arr[insert_idx] = arr[insert_idx - 1];
       insert_idx--;
     }
-
     // insert mapping
     arr[insert_idx] = new_mapping;
     cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", insert_idx, start, end, flags, length);
@@ -671,7 +670,8 @@ sys_wunmap(void) {
   // if NOT MAP_ANON and NOT MAP_PRIVATE: write to file BEFORE unmapping
   if ((toFree->flags & MAP_ANONYMOUS) == 0 && (toFree->flags & MAP_PRIVATE) == 0){
     // if neither of these flags are set, write to file
-    struct file* f = toFree->fd;
+    struct file* f = p->ofile[toFree->fd];
+    // f->off = 0;
     filewrite(f, (void*)toFree->start, toFree->length);
   }
   // remove mapping in PT (walk pg dir) - keep in mind can be multiple pages
@@ -698,11 +698,15 @@ int sys_getpgdirinfo(){
   if (pdinfo == 0){ // NULL pointer
     return FAILED;
   }
+  struct proc* p = myproc();
+  // only collect pages that have PTE_U set
+  pde_t* pgDir = p->pgdir;
+  for (int i = 0; i < NPDENTRIES; i++){ // loop through all the page directories
+  // are they present are they PTE_U? if so check PTEs stored in them
+    cprintf("%p\n",pgDir[i]);
+  }
+  
   // fill in struct from this proc pgdir - use myproc, look at pgdir field
-  // struct proc* p = myproc();
-  // for (int i = 0; i < MAX_UPAGE_INFO; i++){
-
-  // }
   return SUCCESS;
 }
 
