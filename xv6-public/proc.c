@@ -317,6 +317,7 @@ void cleanup_wmapinfo(struct proc *p) {
       // Tried and failed at solving this for a while
       // This helper method could probabaly use more helper methods itsefl
       // This should mean that this function is called in exit to clean up 
+      cleanup_shared_mapping(p, mapping);
     }
     else if (mapping->flags & MAP_PRIVATE) {
       // TODO free the individual mapping, realatively simple to free this mapping
@@ -347,6 +348,17 @@ void free_physical_pages(struct proc *p, struct mem_block *mapping) {
 
   }
 }
+
+// Another helper for a helper
+void cleanup_shared_mapping(struct proc *p, struct mem_block *mapping) {
+    // Decrement reference count
+    mapping->ref--;
+    // Only proceed to free memory if reference count hits zero
+    if (mapping->ref == 0) {
+        free_physical_pages(p, mapping);
+    }
+}
+
 
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state

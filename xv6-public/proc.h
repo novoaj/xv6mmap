@@ -41,6 +41,7 @@ typedef struct mem_block {
     int flags;
     int length;
     int fd;
+    int ref; // Tracks referneces through processess
 } mem_block;
 
 // wmapinfo struct
@@ -84,6 +85,8 @@ void add_shared_mapping(struct proc *child, struct mem_block *mapping);
 void cleanup_wmapinfo(struct proc *p);
 // Helper for that ^^ helper
 void free_physical_pages(struct proc *p, struct mem_block *mapping);
+// Helper for that ^^ helper ie helper squared
+void cleanup_shared_mapping(struct proc *p, struct mem_block *mapping);
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss
