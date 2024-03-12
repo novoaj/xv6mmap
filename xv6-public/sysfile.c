@@ -484,7 +484,7 @@ int insert_mapping(uint start, uint end, int flags, int length, int numMappings,
       p->wmapinfo->length[0] = p->arr[0]->length;
       p->wmapinfo->n_loaded_pages[0] = PGROUNDUP(p->arr[0]->length) / PGSIZE;
       p->wmapinfo->total_mmaps = p->wmapinfo->total_mmaps + 1;
-      cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", 0, start, end, flags, length);
+      cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", 0, start, end, length, flags);
       return p->arr[0]->start;
     }
     // find correct idx to insert, if already something at idx, move to idx+1 and all the ones to the right as well
@@ -558,7 +558,7 @@ sys_wmap(void){
     }
     // insert operation into array
     cprintf("inserting new mapping: start: %x, end: %x, flags: %d\n", addr, end, flags);
-    uint insertAddr = insert_mapping(addr, end, flags, PGROUNDUP(length), p->wmapinfo->total_mmaps, fd);
+    uint insertAddr = insert_mapping(addr, end, flags, (length), p->wmapinfo->total_mmaps, fd);
     
     if (insertAddr == FAILED){ // successful insert?
       return FAILED;
@@ -602,7 +602,7 @@ sys_wmap(void){
       int end = leftmostAddr + PGROUNDUP(length) - 1;
       // TODO insert at leftmostAddr in our array of mappings
       cprintf("inserting at leftmostAddr: %x, end: %x\n", leftmostAddr, end);
-      uint insertAddr = insert_mapping(leftmostAddr, end, flags, PGROUNDUP(length), p->wmapinfo->total_mmaps, fd);
+      uint insertAddr = insert_mapping(leftmostAddr, end, flags, (length), p->wmapinfo->total_mmaps, fd);
       if (insertAddr == FAILED){
         return FAILED;
       }
@@ -708,18 +708,20 @@ int sys_getpgdirinfo(){
           cprintf("PTE_ADDR(*pte): %x\n", PTE_ADDR(*pte));
           cprintf("*pte: %x\n", *pte);
           cprintf("*pte - PTE_ADDR(*pte): %x\n\n", *pte - PTE_ADDR(*pte));
-          uint offset = *pte - PTE_ADDR(*pte); // offset is 0
+          uint offset = 0x000; // offset is 0
           // is this offset^
+          pte_t* pa = (pte_t*)P2V(PTE_ADDR(*pte));
           uint va = PGADDR(i, j, offset); // finds va, need to find OFFSET to get va
           // va has 32 bits -> 10 for PDI, 10 for PTI, 12 for offset
           // i is PDI, j is PTI, what is offset? offset is 3 hex digits or 12 bits, last 12 bits of va
           cprintf("va: i: %x, j: %x, offset: %x\n", i,j,offset);
           cprintf("va: %x\n", va);
-          cprintf("pa: %x\n", V2P(va));
+          cprintf("pa: %x\n", pa);
+          cprintf("count: %d\n", count);
           // cprintf("pa: %x\n", V2P(PTE_ADDR(pte)));
           if (count < MAX_UPAGE_INFO){ 
             pdinfo->va[count] = va;
-            pdinfo->pa[count] = V2P(va);
+            pdinfo->pa[count] = (uint) pa;
           }
           count++;
           pdinfo->n_upages = count;
