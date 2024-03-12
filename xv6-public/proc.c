@@ -226,6 +226,23 @@ void duplicate_private_mapping(struct proc *child, struct mem_block *mapping) {
 
 }
 
+void add_shared_mapping(struct proc *child, struct mem_block *mapping) {
+  uint va;
+  pte_t *pte_parent, *pte_child;
+  for (va = mapping->start; va < mapping->end; va += PGSIZE) {
+    // Retrieve the parent's page table entry for the current virtual address
+    pte_parent = walkpgdir(child->pgdir, (void *) va, 0);
+    if (!pte_parent || !(*pte_parent & PTE_P)) {
+        panic("add_shared_mapping: parent page not present");
+    }
+
+    // Directly use the parent's physical address in the child's page table
+    if (mappages(child->pgdir, (void *)va, PGSIZE, PTE_ADDR(*pte_parent), PTE_FLAGS(*pte_parent)) < 0) {
+        panic("add_shared_mapping: mappages failed for child");
+    }
+  }
+}
+
 // Create a new process copying p as the parent.
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
