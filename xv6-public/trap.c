@@ -99,14 +99,14 @@ trap(struct trapframe *tf)
       }
     }
     if (inMapping){
-      cprintf("PGFAULT\n");
+      // cprintf("PGFAULT\n");
       // lazy allocation means one page at a time
       char* mem;
       mem = kalloc(); // kalloc to give us va that maps to pa
       if (mem == 0){
         panic("kalloc");
       }
-      memset(mem, 0, PGSIZE);
+      memset(mem, 0, PGSIZE); // maybe only map 'length' amount of space? with maximum of a page (4096)
         // cprintf("calling mappages with pgdir = %p, va: %x, size: %d, pa: %x perm: %d\n", p->pgdir, startAddr, PGSIZE, V2P(mem), PTE_W | PTE_U);
       if (mappages(p->pgdir, (void*) faultyAddr, PGSIZE, V2P(mem), PTE_W | PTE_U) != 0){
         cprintf("mappages failed\n");          
@@ -114,8 +114,8 @@ trap(struct trapframe *tf)
       }
         // write to memory if not map anon
       if ((mapping->flags & MAP_ANONYMOUS) == 0){
-        struct file* f = p->ofile[mapping->fd];
-        fileread(f, (void*) faultyAddr, PGSIZE);
+        struct file *f = p->ofile[mapping->fd];
+        fileread(f, (char*) faultyAddr, PGSIZE);
       }
       // here we consider the page to be "loaded"
       p->wmapinfo->n_loaded_pages[location] += 1; 
@@ -125,13 +125,6 @@ trap(struct trapframe *tf)
 
       // only add page that causes page fault, however, mapping->start that page is a mapping of should be wmapinfo[start]
       break;
-
-
-      // handle page fault - map virtual to physical memory, do we write to file in page fault case?
-      // does this mean we copy over va->phys logic here (code that loops and users kalloc and mappages)
-      cprintf("handle page fault at addr: %x\n", faultyAddr);
-      // behavior depends on flags? MAP_ANONYMOUS case means ignoring the file write
-      // if map_shared then we want to write contents of memory to a file.
     }else{
       cprintf("Segmentation Fault\n");
       break;
