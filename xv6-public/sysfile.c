@@ -692,5 +692,21 @@ int sys_getpgdirinfo(){
 }
 
 int sys_getwmapinfo(){
+  // getwmapinfo
+  struct wmapinfo* wminfo;
+  argptr(0, (char**)&wminfo, sizeof(struct wmapinfo*));
+
+  if (wminfo == 0){
+    return FAILED;
+  }
+  struct proc* p = myproc();
+  wminfo->total_mmaps = p->wmapinfo->total_mmaps;
+  for (int i = 0; i < p->wmapinfo->total_mmaps; i++){
+    wminfo->addr[i] = p->wmapinfo->addr[i];
+    wminfo->length[i] = p->wmapinfo->length[i];
+    wminfo->n_loaded_pages[i] = p->wmapinfo->n_loaded_pages[i];
+  }
+
+  // use wmap struct from our process to fill in wminfo
   return -1;
 }
