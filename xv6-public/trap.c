@@ -79,24 +79,30 @@ trap(struct trapframe *tf)
     break;
   // Add T_PGFLT
   case T_PGFLT: // T_PGFLT = 14
+  // "In lazy allocation, you should only map the page that's currently being accessed."
   //    if page fault addr is part of a mapping: // lazy allocation
+  // lazy allocation means allocating physical memory in the case of a page fault (we are currently doing it in sysfile.c)
     uint faultyAddr = rcr2();
     int inMapping = 0;
     struct proc* p = myproc();
     // find if page is in mapping
     for (int i = 0; i < MAX_WMMAP_INFO; i++){
       if (p->arr[i] != 0){ // is this faultyAddr a part of an existing mapping?
-        if (faultyAddr > p->arr[i]->start && faultyAddr < p->arr[i]->end){
+        if (faultyAddr >= p->arr[i]->start && faultyAddr <= p->arr[i]->end){
           inMapping = 1;
           break;
         }
       }
     }
     if (inMapping){
-      // handle page fault
+      // handle page fault - map virtual to physical memory, do we write to file in page fault case?
+      // does this mean we copy over va->phys logic here (code that loops and users kalloc and mappages)
       cprintf("handle page fault at addr: %x\n", faultyAddr);
+      // behavior depends on flags? MAP_ANONYMOUS case means ignoring the file write
+      // if map_shared then we want to write contents of memory to a file.
     }else{
       cprintf("Segmentation Fault\n");
+      break;
     }
 
 
