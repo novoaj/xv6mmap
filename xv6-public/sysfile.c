@@ -478,35 +478,35 @@ int insert_mapping(uint start, uint end, int flags, int length, int numMappings,
   new_mapping->fd = fd;
   // find index to insert into
 
-  if (numMappings == 0){ // empty case
-    p->arr[0] = new_mapping;
-    p->wmapinfo->addr[0] = p->arr[0]->start;
-    p->wmapinfo->length[0] = p->arr[0]->length;
-    p->wmapinfo->n_loaded_pages[0] = PGROUNDUP(p->arr[0]->length) / PGSIZE;
-    p->wmapinfo->total_mmaps = p->wmapinfo->total_mmaps + 1;
-    cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", 0, start, end, length, flags);
-    return p->arr[0]->start;
-  }
-  // find correct idx to insert, if already something at idx, move to idx+1 and all the ones to the right as well
-  // want to sort by start addr
-  // Find the correct position to insert the new mapping
-  int insert_idx = numMappings;
-  while (insert_idx > 0 && p->arr[insert_idx - 1]->start > start) { // if ith mapping belongs before i-1 mapping, shift i-1 to i (right shift)
-    p->arr[insert_idx] = p->arr[insert_idx - 1];
-    p->wmapinfo->addr[insert_idx] = p->wmapinfo->addr[insert_idx - 1];
-    p->wmapinfo->length[insert_idx] = p->wmapinfo->length[insert_idx - 1];
-    p->wmapinfo->n_loaded_pages[insert_idx] = p->wmapinfo->n_loaded_pages[insert_idx - 1];
+    if (numMappings == 0){ // empty case
+      p->arr[0] = new_mapping;
+      p->wmapinfo->addr[0] = p->arr[0]->start;
+      p->wmapinfo->length[0] = p->arr[0]->length;
+      p->wmapinfo->total_mmaps = p->wmapinfo->total_mmaps + 1;
+       // p->wmapinfo->n_loaded_pages[0] = PGROUNDUP(p->arr[0]->length) / PGSIZE;
+      cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", 0, start, end, length, flags);
+      return p->arr[0]->start;
+    }
+    // find correct idx to insert, if already something at idx, move to idx+1 and all the ones to the right as well
+    // want to sort by start addr
+    // Find the correct position to insert the new mapping
+    int insert_idx = numMappings;
+    while (insert_idx > 0 && p->arr[insert_idx - 1]->start > start) { // if ith mapping belongs before i-1 mapping, shift i-1 to i (right shift)
+      p->arr[insert_idx] = p->arr[insert_idx - 1];
+      p->wmapinfo->addr[insert_idx] = p->wmapinfo->addr[insert_idx - 1];
+      p->wmapinfo->length[insert_idx] = p->wmapinfo->length[insert_idx - 1];
+      p->wmapinfo->n_loaded_pages[insert_idx] = p->wmapinfo->n_loaded_pages[insert_idx - 1];
 
-    insert_idx--;
-  }
-  // insert mapping
-  p->arr[insert_idx] = new_mapping;
-  p->wmapinfo->addr[insert_idx] = p->arr[insert_idx]->start;
-  p->wmapinfo->length[insert_idx] = p->arr[insert_idx]->length;
-  p->wmapinfo->n_loaded_pages[insert_idx] = PGROUNDUP(p->arr[insert_idx]->length) / PGSIZE;
-  p->wmapinfo->total_mmaps = p->wmapinfo->total_mmaps + 1;
-  cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", insert_idx, start, end, flags, length);
-  return new_mapping->start;
+      insert_idx--;
+    }
+    // insert mapping
+    p->arr[insert_idx] = new_mapping;
+    p->wmapinfo->addr[insert_idx] = p->arr[insert_idx]->start;
+    p->wmapinfo->length[insert_idx] = p->arr[insert_idx]->length;
+    p->wmapinfo->total_mmaps = p->wmapinfo->total_mmaps + 1;
+    // p->wmapinfo->n_loaded_pages[insert_idx] = PGROUNDUP(p->arr[insert_idx]->length) / PGSIZE;
+    cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", insert_idx, start, end, flags, length);
+    return new_mapping->start;
 }
 
 /*

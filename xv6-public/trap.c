@@ -7,6 +7,7 @@
 #include "x86.h"
 #include "traps.h"
 #include "spinlock.h"
+#include "wmap.h"
 
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
@@ -81,42 +82,49 @@ trap(struct trapframe *tf)
   case T_PGFLT: // T_PGFLT = 14
   // "In lazy allocation, you should only map the page that's currently being accessed."
   //    if page fault addr is part of a mapping: // lazy allocation
-  // lazy allocation means allocating physical memory in the case of a page fault (we are currently doing it in sysfile.c)
     uint faultyAddr = rcr2();
     int inMapping = 0;
     struct proc* p = myproc();
     mem_block* mapping;
+    int location;
     // find if page is in mapping
     for (int i = 0; i < MAX_WMMAP_INFO; i++){
       if (p->arr[i] != 0){ // is this faultyAddr a part of an existing mapping?
         if (faultyAddr >= p->arr[i]->start && faultyAddr <= p->arr[i]->end){
           inMapping = 1;
           mapping = p->arr[i];
+          location = i;
           break;
         }
       }
     }
     if (inMapping){
-      uint startAddr = mapping->start;
-      int pagesNeeded = PGROUNDUP(mapping->length) / PGSIZE;
-
-       // mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
-      // this is the logic for allocating physical memory for our virtual
-      for (int i = 0; i < pagesNeeded; i++){
-        char* mem;
-        mem = kalloc(); // kalloc to give us va that maps to pa
-        if (mem == 0){
-          panic("kalloc");
-        }
-        memset(mem, 0, PGSIZE);
-        cprintf("calling mappages with pgdir = %p, va: %x, size: %d, pa: %x perm: %d\n", p->pgdir, startAddr, PGSIZE, V2P(mem), PTE_W | PTE_U);
-        if (mappages(p->pgdir, (void*) startAddr, PGSIZE, V2P(mem), PTE_W | PTE_U) != 0){
-          cprintf("mappages failed\n");
-          kfree(mem);
-        }
-        startAddr = startAddr + PGSIZE; // increment va to map to physical
-        cprintf("startAddr: %x\n", startAddr);
+      cprintf("PGFAULT\n");
+      // lazy allocation means one page at a time
+      char* mem;
+      mem = kalloc(); // kalloc to give us va that maps to pa
+      if (mem == 0){
+        panic("kalloc");
       }
+      memset(mem, 0, PGSIZE);
+        // cprintf("calling mappages with pgdir = %p, va: %x, size: %d, pa: %x perm: %d\n", p->pgdir, startAddr, PGSIZE, V2P(mem), PTE_W | PTE_U);
+      if (mappages(p->pgdir, (void*) faultyAddr, PGSIZE, V2P(mem), PTE_W | PTE_U) != 0){
+        cprintf("mappages failed\n");          
+        kfree(mem);
+      }
+        // write to memory if not map anon
+      if ((mapping->flags & MAP_ANONYMOUS) == 0){
+        struct file* f = p->ofile[mapping->fd];
+        fileread(f, (void*) faultyAddr, PGSIZE);
+      }
+      // here we consider the page to be "loaded"
+      p->wmapinfo->n_loaded_pages[location] += 1; 
+      // p->wmapinfo->addr[p->wmapinfo->total_mmaps] = faultyAddr;
+      // p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGSIZE;
+      // p->wmapinfo->total_mmaps += 1;
+
+      // only add page that causes page fault, however, mapping->start that page is a mapping of should be wmapinfo[start]
+      break;
 
 
       // handle page fault - map virtual to physical memory, do we write to file in page fault case?
