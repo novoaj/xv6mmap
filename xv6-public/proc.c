@@ -203,6 +203,8 @@ fork(void)
   struct proc *np;
   struct proc *curproc = myproc();
 
+  // TODO: depending on curproc's mmap and the flags associated w each mapping, copy or don't copy over memmappings to np (new process)
+
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
