@@ -13,5 +13,7 @@ int main(void)
     printf(1,"return addr: %x\n", address2);
     uint address3 = wmap(0x60000000, 10000, MAP_ANONYMOUS, -1);
     printf(1,"return addr: %x\n", address3);
+    struct pgdirinfo* pdinfo = (struct pgdirinfo*)malloc(sizeof(struct pgdirinfo*));
+    getpgdirinfo(pdinfo);
     exit();
 } 
