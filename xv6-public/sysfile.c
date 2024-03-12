@@ -709,24 +709,32 @@ int sys_getpgdirinfo(){
   // find PDE using PDX(va)? but we want to go through all PDXs anyway
     pde_t* pde = &pgDir[i];
     if ((PTE_FLAGS(*pde) & PTE_P) && (PTE_FLAGS(*pde) & PTE_U)){
-      cprintf("P and U flag set- pde: %p\n",pde);
-      cprintf("*pde: %x\n", *pde);
+      // cprintf("P and U flag set- pde: %p\n",pde);
+      // cprintf("*pde: %x\n", *pde);
       // go to PT that this PDE points to
       pte_t* pgTable = (pte_t*)P2V(PTE_ADDR(*pde));
       cprintf("pt: %x\n", pgTable);
       // iter through PTEs
       for (int j = 0; j < NPTENTRIES; j++){
-        pte_t* pte = &pgTable[j];
+        pte_t* pte = &pgTable[j]; // PPN and offset
         if ((PTE_FLAGS(*pte) & PTE_P) && (PTE_FLAGS(*pte) & PTE_U)){ 
           cprintf("pte: %x\n", pte);
           cprintf("PTE_ADDR(*pte): %x\n", PTE_ADDR(*pte));
           cprintf("*pte: %x\n", *pte);
+          cprintf("*pte - PTE_ADDR(*pte): %x\n\n", *pte - PTE_ADDR(*pte));
+          uint offset = *pte - PTE_ADDR(*pte);
+          // is this offset^
+          uint va = PGADDR(i, j, offset); // finds va, need to find OFFSET to get va
           // va has 32 bits -> 10 for PDI, 10 for PTI, 12 for offset
+          // i is PDI, j is PTI, what is offset? offset is 3 hex digits or 12 bits, last 12 bits of va
+          cprintf("va: i: %x, j: %x, offset: %x\n", i,j,offset);
+          cprintf("va: %x\n", va);
+          cprintf("pa: %x\n", V2P(va));
           // cprintf("pa: %x\n", V2P(PTE_ADDR(pte)));
-          // if (count < MAX_UPAGE_INFO){
-          //   pdinfo->va[count] = PTE_ADDR(pte);
-          //   pdinfo->pa[count] = V2P(PTE_ADDR(pte));
-          // }
+          if (count < MAX_UPAGE_INFO){ 
+            pdinfo->va[count] = va;
+            pdinfo->pa[count] = V2P(va);
+          }
           count++;
           pdinfo->n_upages = count;
           // all of the page table entries that are present and in the user addr space
