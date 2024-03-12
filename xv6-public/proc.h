@@ -82,6 +82,8 @@ void duplicate_private_mapping(struct proc *child, struct mem_block *mapping);
 void add_shared_mapping(struct proc *child, struct mem_block *mapping);
 // Header declarations for a exit helper function
 void cleanup_wmapinfo(struct proc *p);
+// Helper for that ^^ helper
+void free_physical_pages(struct proc *p, struct mem_block *mapping);
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss
