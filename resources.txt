@@ -1,3 +1,4 @@
 https://www.geeksforgeeks.org/xv6-operating-system-add-a-user-program/
 https://www.geeksforgeeks.org/xv6-operating-system-adding-a-new-system-call/ 
 https://64.github.io/cpp-faq/include-guards-pragma-once/
+https://github.com/zarif98sjs/xv6-memory-management-walkthrough
