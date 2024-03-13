@@ -360,7 +360,7 @@ fork(void)
         cprintf("memmove in MAP_PRIVATE case\n");
         memmove(mem, P2V(PTE_ADDR(*pte)), PGSIZE);
 
-        if(mappages(np->pgdir, (void*)va, PGSIZE, (uint) mem, PTE_W | PTE_U) != 0){
+        if(mappages(np->pgdir, (void*)va, PGSIZE, (uint) V2P(mem), PTE_W | PTE_U) != 0){
           cprintf("kfree in fork for MAP_PRIVATE\n\n");
           kfree(mem);
           // np->killed=1;
@@ -380,7 +380,8 @@ fork(void)
         uint pa = (uint)P2V(PTE_ADDR(*pte_parent));
         // uint flags = PTE_FLAGS(*pte_parent);
         // Map the physical page into the child's page table with the same permissions
-        if (mappages(np->pgdir, (void *)va, PGSIZE, pa, PTE_W | PTE_U) != 0){
+        memset((void*)pa, 0, PGSIZE);
+        if (mappages(np->pgdir, (void *)va, PGSIZE, V2P(pa), PTE_W | PTE_U) != 0){
           cprintf("mappages failed in fork\n\n");
           kfree((char*) pa);
           // np->killed = 1;
@@ -499,6 +500,12 @@ exit(void)
     }
   }
 
+  // free pointers in proc struct
+  kfree((char*)curproc->wmapinfo);
+  for (int i = 0; i < MAX_WMMAP_INFO; i++){
+    kfree((char*)curproc->arr[i]);
+  }
+  
   cprintf("deallocing uvm...\n\n");
   deallocuvm(myproc()->pgdir, myproc()->sz, 0);
   cprintf("deallocuvm done\n");
