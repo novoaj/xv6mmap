@@ -476,6 +476,7 @@ int insert_mapping(uint start, uint end, int flags, int length, int numMappings,
   new_mapping->flags = flags;
   new_mapping->length = length;
   new_mapping->fd = fd;
+  new_mapping->ref = 1; // needs to probably increment it, maybe we can init mem_blocks with valid pointer values in proc.c and then have a 'valid' int associated with each one rather than checking for 'null' ptrs
   // find index to insert into
 
     if (numMappings == 0){ // empty case
@@ -510,7 +511,7 @@ int insert_mapping(uint start, uint end, int flags, int length, int numMappings,
 }
 
 /*
- * Remove mapping for wunmap. This method should find the target address remove the
+ * Remove mapping from p->arr. This method should find the target address remove the
  * page table and left shift the other page table entries left to keep them sorted
  */
 int remove_mapping(uint addr) {
@@ -522,23 +523,48 @@ int remove_mapping(uint addr) {
   for (int i = 0; i < MAX_WMMAP_INFO; i++) {
     if (p->arr[i] != 0 && p->arr[i]->start == addr) {
       found = i;
+      cprintf("remove item at %d\n", found);
       break;
     }
   }
 
   // Remove page table mapping
-  mem_block *mapping = p->arr[found];
-  for (uint va = mapping->start; va < mapping->end; va += PGSIZE) {
-    pte_t *pte = walkpgdir(p->pgdir, (void *)va, 0);
-    if (pte && (*pte & PTE_P)) {
-      // Clear the page table entry
-      *pte = 0;
+  // mem_block *mapping = p->arr[found];
+  // for (uint va = mapping->start; va < mapping->end; va += PGSIZE) {
+  //   pte_t *pte = walkpgdir(p->pgdir, (void *)va, 0);
+  //   if (pte && (*pte & PTE_P)) {
+  //     // Clear the page table entry
+  //     *pte = 0;
+  //   }
+  // }
+  p->arr[found]->ref -= 1; 
+  cprintf("this mapping has: %d references\n", p->arr[found]->ref);
+  // no other procs hold this mapping
+  if (p->arr[found]->ref == 0) {
+    // remove from wmap if present
+    cprintf("removing mapping starting at %x\n", p->wmapinfo->addr[found]);
+    p->wmapinfo->addr[found] = 0;
+    p->wmapinfo->length[found] = 0;
+    p->wmapinfo->leftmostLoadedAddr[found] = 0;
+    p->wmapinfo->n_loaded_pages[found] = 0;
+    p->wmapinfo->total_mmaps -= 1;
+    cprintf("%d\n", p->wmapinfo->total_mmaps);
+
+    p->arr[found] = 0; // assign to null pointer
+    for (int i = found; i < MAX_WMMAP_INFO - 1; i++) { // left shift items starting from i+1 to fill gap
+      p->arr[i] = p->arr[i + 1]; // left shift items in p->arr
+      cprintf("left shifting...\n");
+      // leftshift items in p->wmapinfo arrays
+      p->wmapinfo->addr[found] = p->wmapinfo->addr[found + 1];
+      p->wmapinfo->length[found] = p->wmapinfo->length[found + 1];
+      p->wmapinfo->leftmostLoadedAddr[found] = p->wmapinfo->leftmostLoadedAddr[found + 1];
+      p->wmapinfo->n_loaded_pages[found] = p->wmapinfo->n_loaded_pages[found + 1];
+
     }
+    
   }
   // Preforem left shit to fill the gap
-  for (int i = found; i < MAX_WMMAP_INFO - 1; i++) {
-    p->arr[i] = p->arr[i + 1];
-  }
+  
   return 1;
 }
 
