@@ -287,7 +287,8 @@ void add_shared_mapping(struct proc *child, struct mem_block *parent_mapping) {
 // Caller must set state of returned proc to RUNNABLE.
 int
 fork(void)
-{
+{ 
+  cprintf("enter fork...\n\n");
   int i, pid;
   struct proc *np;
   struct proc *curproc = myproc();
@@ -323,53 +324,45 @@ fork(void)
   // Allows inheritance of maps depending on MAP_PRIVATE or MAP_SHARED flags
   cprintf("Parent PID: %d\n", curproc->pid);
   cprintf("Child PID: %d\n", np->pid);
-  for (int i = 0; i < curproc->wmapinfo->total_mmaps; i++) {
-      struct mem_block *cur_mapping = curproc->arr[i];
+  for (int i = 0; i < MAX_WMMAP_INFO; i++) {
+    if (curproc->arr[i]->valid == 0){
+      continue;
+    }
+    struct mem_block *cur_mapping = curproc->arr[i];
       
     if (cur_mapping->flags & MAP_PRIVATE) {
+      // copy the ith mapping from parent to child
+        cprintf("copying mapping from parent: %d - %p, to child: %d - %p\n", i, curproc->arr[i], i, np->arr[i]);
+        np->arr[i] = curproc->arr[i];
+        np->wmapinfo = curproc->wmapinfo;
       for (uint va = cur_mapping->start; va < cur_mapping->end; va += PGSIZE) {
         // Walk the parent's page directory to find the PTE for the current VA
-        
-        pte_t *pte = walkpgdir(np->parent->pgdir, (void *)va, 0);
-        cprintf("child page directory: %p\n", (void*)np->pgdir);
-        cprintf("child->parent page directory: %p\n", (void*)np->parent->pgdir);
-        cprintf("pte in duplicate_private_mapping: %p\n", (void*)pte);
-
-        //     panic("duplicate private mapping: parent page not present");
-        // }
-
-        // Allocate a new physical page for the child
-        // TODO I think the addressing is okay but maybe a problem with the copying of page tabels
-        // Could also be incorectly error checking on my part
         char *mem = kalloc();
-        // if (!mem) {
-        //     panic("duplicate private mapping: kalloc failed");
-        // }
+        if (mem == 0){
+          panic("kalloc\n");
+        }
+        pte_t *pte = walkpgdir(curproc->pgdir, (void *)va, 0);
+        // cprintf("child page directory: %p\n", (void*)np->pgdir);
+        // cprintf("child->parent page directory: %p\n", (void*)np->parent->pgdir);
+        // cprintf("pte in duplicate_private_mapping: %p\n", (void*)pte);
+        cprintf("memmove in MAP_PRIVATE case\n");
+        memmove(mem, P2V(PTE_ADDR(*pte)), PGSIZE);
 
-        // Copy the content from the parent's page to the newly allocated page
-        uint pa = PTE_ADDR(*pte);
-        memmove(mem, (char*)P2V(pa), PGSIZE);
-        //cprintf("mem value: %d\n", mem);
-        //cprintf("pte in duplicate_private_mapping after memmove: %d\n", pte);
-
-        // Map the new page into the child's page table
-        mappages(np->pgdir, (void*)va, PGSIZE, V2P(mem), PTE_FLAGS(*pte));
-        cprintf("pte in duplicate_private_mapping: %p\n", (void*)pte);
+        if(mappages(np->pgdir, (void*)va, PGSIZE, (uint) mem, PTE_FLAGS(*pte)) != 0){
+          cprintf("before kfreeing in fork for MAP_PRIVATE\n\n");
+          kfree(mem);
+          cprintf("fork complete\n\n");
+        }
       }
     } else if (cur_mapping->flags & MAP_SHARED) {
+      cprintf("map shared case in fork\n\n");
+      np->arr[i] = curproc->arr[i];
+      np->wmapinfo = curproc->wmapinfo;
       // TODO need to add reference update when a mapping
       // is forked so that exit can properly close mappings
       for (uint va = cur_mapping->start; va < cur_mapping->end; va += PGSIZE) {
         // Find the parent's page table entry for this virtual address
-        pte_t *pte_parent = walkpgdir(np->parent->pgdir, (void *)va, 0);
-        
-        // Ensure the page is present in the parent's page table
-        // if (!pte_parent || !(*pte_parent & PTE_P)) {
-        //     panic("add_shared_mapping: parent page not present");
-        // }
-
-        
-        // No need to allocate a new physical page for the child, use the parent's
+        pte_t *pte_parent = walkpgdir(curproc->pgdir, (void *)va, 0);
         uint pa = PTE_ADDR(*pte_parent);
         uint flags = PTE_FLAGS(*pte_parent);
 
@@ -389,6 +382,7 @@ fork(void)
 
   release(&ptable.lock);
 
+  cprintf("fork returns %d\n", pid);
   return pid;
 }
 
@@ -474,7 +468,6 @@ exit(void)
   end_op();
   curproc->cwd = 0;
 
-  //cleanup_wmapinfo(curproc);
 
   acquire(&ptable.lock);
 
@@ -489,7 +482,18 @@ exit(void)
         wakeup1(initproc);
     }
   }
-  deallocuvm(myproc()->pgdir, myproc()->sz, 0);
+
+  //cleanup_wmapinfo(curproc);
+
+
+  //deallocuvm(myproc()->pgdir, myproc()->sz, 0);
+  cprintf("kfree wmapinfo start \n\n"); 
+  kfree((char *)curproc->wmapinfo);
+  cprintf("kfree wmapinfo end \n\n");
+  for (int i = 0; i < MAX_WMMAP_INFO; i++) {
+    cprintf("kfree wmapinfo \n\n");
+    kfree((char *)curproc->arr[i]);
+  }
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
