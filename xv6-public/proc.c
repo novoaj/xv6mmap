@@ -333,8 +333,20 @@ fork(void)
     if (cur_mapping->flags & MAP_PRIVATE) {
       // copy the ith mapping from parent to child
         cprintf("copying mapping from parent: %d - %p, to child: %d - %p\n", i, curproc->arr[i], i, np->arr[i]);
-        np->arr[i] = curproc->arr[i];
-        np->wmapinfo = curproc->wmapinfo;
+       // np->arr[i] = curproc->arr[i];
+        np->arr[i]->end = curproc->arr[i]->end;
+        np->arr[i]->fd = curproc->arr[i]->fd;
+        np->arr[i]->flags = curproc->arr[i]->flags;
+        np->arr[i]->length = curproc->arr[i]->length;
+        np->arr[i]->ref = curproc->arr[i]->ref;
+        np->arr[i]->start = curproc->arr[i]->start;
+        np->arr[i]->valid = curproc->arr[i]->valid;
+
+        np->wmapinfo->addr[i] = curproc->wmapinfo->addr[i];
+        np->wmapinfo->leftmostLoadedAddr[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
+        np->wmapinfo->length[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
+        np->wmapinfo->n_loaded_pages[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
+        np->wmapinfo->total_mmaps += 1;
       for (uint va = cur_mapping->start; va < cur_mapping->end; va += PGSIZE) {
         // Walk the parent's page directory to find the PTE for the current VA
         char *mem = kalloc();
@@ -357,7 +369,21 @@ fork(void)
     } else if (cur_mapping->flags & MAP_SHARED) {
       cprintf("map shared case in fork\n\n");
       np->arr[i] = curproc->arr[i];
+      np->arr[i]->ref++;
       np->wmapinfo = curproc->wmapinfo;
+      // np->arr[i]->end = curproc->arr[i]->end;
+      // np->arr[i]->fd = curproc->arr[i]->fd;
+      // np->arr[i]->flags = curproc->arr[i]->flags;
+      // np->arr[i]->length = curproc->arr[i]->length;
+      // np->arr[i]->ref = curproc->arr[i]->ref;
+      // np->arr[i]->start = curproc->arr[i]->start;
+      // np->arr[i]->valid = curproc->arr[i]->valid;
+
+      // np->wmapinfo->addr[i] = curproc->wmapinfo->addr[i];
+      // np->wmapinfo->leftmostLoadedAddr[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
+      // np->wmapinfo->length[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
+      // np->wmapinfo->n_loaded_pages[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
+      // np->wmapinfo->total_mmaps += 1;
       // TODO need to add reference update when a mapping
       // is forked so that exit can properly close mappings
       for (uint va = cur_mapping->start; va < cur_mapping->end; va += PGSIZE) {
@@ -448,6 +474,7 @@ void cleanup_shared_mapping(struct proc *p, struct mem_block *mapping) {
 void
 exit(void)
 {
+  cprintf("\n\nexit enters...\n\n");
   struct proc *curproc = myproc();
   struct proc *p;
   int fd;
@@ -483,22 +510,14 @@ exit(void)
     }
   }
 
-  //cleanup_wmapinfo(curproc);
-
-
-  //deallocuvm(myproc()->pgdir, myproc()->sz, 0);
-  cprintf("kfree wmapinfo start \n\n"); 
-  kfree((char *)curproc->wmapinfo);
-  cprintf("kfree wmapinfo end \n\n");
-  for (int i = 0; i < MAX_WMMAP_INFO; i++) {
-    cprintf("kfree wmapinfo \n\n");
-    kfree((char *)curproc->arr[i]);
-  }
-
+  cprintf("deallocing uvm...\n\n");
+  deallocuvm(myproc()->pgdir, myproc()->sz, 0);
+  cprintf("deallocuvm done\n");
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
   sched();
   panic("zombie exit");
+  cprintf("\n\nexit returning...\n\n");
 }
 
 // Wait for a child process to exit and return its pid.
