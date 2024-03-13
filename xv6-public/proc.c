@@ -220,33 +220,37 @@ void increment_mapping_ref_count(struct mem_block *mapping) {
 }
 
 void duplicate_private_mapping(struct proc *child, struct mem_block *mapping) {
+    uint va, pa;
+    pte_t *pte;
+    char *mem;
 
-  uint va, pa;
-  pte_t *pte;
-  char *mem;
+    for (va = mapping->start; va < mapping->end; va += PGSIZE) {
+        // Walk the parent's page directory to find the PTE for the current VA
+        
+        pte = walkpgdir(child->parent->pgdir, (void *)va, 0);
+        cprintf("pte in duplicate_private_mapping: %d\n", pte);
+        // if (!pte || !(*pte & PTE_P)) {
+        //     panic("duplicate private mapping: parent page not present");
+        // }
 
-  for (va = mapping->start; va < mapping->end; va += PGSIZE) {
-    // Error checking
-    if ((pte = walkpgdir(child->pgdir, (void *) va, 0)) == 0) {
-      panic("duplicate mapping: pte should exist");
+        // Allocate a new physical page for the child
+        mem = kalloc();
+        // if (!mem) {
+        //     panic("duplicate private mapping: kalloc failed");
+        // }
+
+        // Copy the content from the parent's page to the newly allocated page
+        pa = PTE_ADDR(*pte);
+        memmove(mem, (char*)P2V(pa), PGSIZE);
+        cprintf("pte in duplicate_private_mapping after memmove: %d\n", pte);
+
+        // Map the new page into the child's page table
+        if (mappages(child->pgdir, (void*)va, PGSIZE, V2P(mem), PTE_FLAGS(*pte)) < 0) {
+            panic("duplicate private mapping: mappages failed");
+        }
     }
-    if ((*pte & PTE_P) == 0) {
-      panic("duplicate mapping: page not present");
-    }
-    pa = PTE_ADDR(*pte);
-
-    if ((mem = kalloc()) == 0) {
-      panic("duplicate mapping: kalloc failed");
-    }
-    // Copy data from parent to child
-    memmove(mem, (char*)P2V(pa), PGSIZE);
-
-    if (mappages(child->pgdir, (void*)va, PGSIZE, V2P(mem), PTE_FLAGS(*pte)) < 0) {
-      panic("duplicate mapping: mappages failed");
-    }
-  }
-
 }
+
 
 void add_shared_mapping(struct proc *child, struct mem_block *mapping) {
   uint va;
@@ -304,6 +308,8 @@ fork(void)
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   // Allows inheritance of maps depending on MAP_PRIVATE or MAP_SHARED flags
+  cprintf("Parent PID: %d\n", curproc->pid);
+  cprintf("Child PID: %d\n", np->pid);
   for (int i = 0; i < curproc->wmapinfo->total_mmaps; i++) {
       struct mem_block *cur_mapping = curproc->arr[i];
       
@@ -409,6 +415,8 @@ exit(void)
   iput(curproc->cwd);
   end_op();
   curproc->cwd = 0;
+
+  cleanup_wmapinfo(curproc);
 
   acquire(&ptable.lock);
 
