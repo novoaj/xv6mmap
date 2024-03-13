@@ -751,7 +751,7 @@ sys_wunmap(void) {
       *pte = 0;
 
       // Flush the TLB for this specific virtual address to ensure CPU uses updated PTE
-      asm volatile("invlpg (%0)" :: "r"(va) : "memory");
+      //asm volatile("invlpg (%0)" :: "r"(va) : "memory");
 
       // Free the physical page by converting physical address to its corresponding kernel virtual address
       kfree(P2V(pa));
