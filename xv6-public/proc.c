@@ -421,7 +421,7 @@ exit(void)
   end_op();
   curproc->cwd = 0;
 
-  cleanup_wmapinfo(curproc);
+  //cleanup_wmapinfo(curproc);
 
   acquire(&ptable.lock);
 
@@ -436,6 +436,7 @@ exit(void)
         wakeup1(initproc);
     }
   }
+  deallocuvm(myproc()->pgdir, myproc()->sz, 0);
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
