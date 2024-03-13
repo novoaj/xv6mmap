@@ -119,7 +119,10 @@ found:
     panic("kalloc()");
   }
   wmap->total_mmaps = 0;
-  // init wmap info arrays to hold 0 values at each idx
+  // init wmap info arrays to hold 0 values at each idx so no garbage values
+  // TODO: also want to initialize mem_block arrays to hold pointers - maybe we have valid bit in mem_block struct. 
+    // instead of checking whether its null and kallocing in sysfile insert method, we can check valid bit.
+    // running into issues with ref currrently because it holds a garbage value so maybe best for us to init here with 0s or something
   for (int i = 0; i < MAX_WMMAP_INFO; i++){
     wmap->addr[i] = 0;
     wmap->length[i] = 0;
