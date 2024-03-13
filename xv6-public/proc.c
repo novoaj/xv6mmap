@@ -257,22 +257,38 @@ void duplicate_private_mapping(struct proc *child, struct mem_block *mapping) {
 }
 
 
-void add_shared_mapping(struct proc *child, struct mem_block *mapping) {
-  uint va;
-  pte_t *pte_parent;
-  for (va = mapping->start; va < mapping->end; va += PGSIZE) {
-    // Retrieve the parent's page table entry for the current virtual address
-    pte_parent = walkpgdir(child->pgdir, (void *) va, 0);
-    if (!pte_parent || !(*pte_parent & PTE_P)) {
-        panic("add_shared_mapping: parent page not present");
+void add_shared_mapping(struct proc *child, struct mem_block *parent_mapping) {
+    uint va;
+    pte_t *pte_parent;
+    //char *mem;
+
+    // Iterate through each page in the mapping
+    for (va = parent_mapping->start; va < parent_mapping->end; va += PGSIZE) {
+        // Find the parent's page table entry for this virtual address
+        pte_parent = walkpgdir(child->parent->pgdir, (void *)va, 0);
+        
+        // Ensure the page is present in the parent's page table
+        // if (!pte_parent || !(*pte_parent & PTE_P)) {
+        //     panic("add_shared_mapping: parent page not present");
+        // }
+        
+        // No need to allocate a new physical page for the child, use the parent's
+        uint pa = PTE_ADDR(*pte_parent);
+        uint flags = PTE_FLAGS(*pte_parent);
+
+        // Map the physical page into the child's page table with the same permissions
+        if (mappages(child->pgdir, (void *)va, PGSIZE, pa, flags) < 0) {
+            panic("add_shared_mapping: mappages failed for child");
+        }
     }
 
-    // Directly use the parent's physical address in the child's page table
-    if (mappages(child->pgdir, (void *)va, PGSIZE, PTE_ADDR(*pte_parent), PTE_FLAGS(*pte_parent)) < 0) {
-        panic("add_shared_mapping: mappages failed for child");
-    }
-  }
+    // Increment the reference count for the shared mapping
+    // Depending on your reference count handling mechanism
+    // This step ensures that when the mapping is no longer used by any process,
+    // it can be properly deallocated.
+    parent_mapping->ref++;
 }
+
 
 // Create a new process copying p as the parent.
 // Sets up stack to return as if from system call.
