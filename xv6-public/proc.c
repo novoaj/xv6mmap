@@ -256,9 +256,9 @@ void duplicate_private_mapping(struct proc *child, struct mem_block *mapping) {
 
 
 void add_shared_mapping(struct proc *child, struct mem_block *parent_mapping) {
-    uint va;
-    pte_t *pte_parent;
-    //char *mem;
+  uint va;
+  pte_t *pte_parent;
+  //char *mem;
 
     // Iterate through each page in the mapping
   for (va = parent_mapping->start; va < parent_mapping->end; va += PGSIZE) {
@@ -327,12 +327,56 @@ fork(void)
       struct mem_block *cur_mapping = curproc->arr[i];
       
     if (cur_mapping->flags & MAP_PRIVATE) {
-        duplicate_private_mapping(np, cur_mapping);
+      for (uint va = cur_mapping->start; va < cur_mapping->end; va += PGSIZE) {
+        // Walk the parent's page directory to find the PTE for the current VA
+        
+        pte_t *pte = walkpgdir(np->parent->pgdir, (void *)va, 0);
+        cprintf("child page directory: %p\n", (void*)np->pgdir);
+        cprintf("child->parent page directory: %p\n", (void*)np->parent->pgdir);
+        cprintf("pte in duplicate_private_mapping: %p\n", (void*)pte);
+
+        //     panic("duplicate private mapping: parent page not present");
+        // }
+
+        // Allocate a new physical page for the child
+        // TODO I think the addressing is okay but maybe a problem with the copying of page tabels
+        // Could also be incorectly error checking on my part
+        char *mem = kalloc();
+        // if (!mem) {
+        //     panic("duplicate private mapping: kalloc failed");
+        // }
+
+        // Copy the content from the parent's page to the newly allocated page
+        uint pa = PTE_ADDR(*pte);
+        memmove(mem, (char*)P2V(pa), PGSIZE);
+        //cprintf("mem value: %d\n", mem);
+        //cprintf("pte in duplicate_private_mapping after memmove: %d\n", pte);
+
+        // Map the new page into the child's page table
+        mappages(np->pgdir, (void*)va, PGSIZE, V2P(mem), PTE_FLAGS(*pte));
+      }
     } else if (cur_mapping->flags & MAP_SHARED) {
       // TODO need to add reference update when a mapping
       // is forked so that exit can properly close mappings
-        add_shared_mapping(np, cur_mapping);
-        increment_mapping_ref_count(cur_mapping);
+      for (uint va = cur_mapping->start; va < cur_mapping->end; va += PGSIZE) {
+        // Find the parent's page table entry for this virtual address
+        pte_t *pte_parent = walkpgdir(np->parent->pgdir, (void *)va, 0);
+        
+        // Ensure the page is present in the parent's page table
+        // if (!pte_parent || !(*pte_parent & PTE_P)) {
+        //     panic("add_shared_mapping: parent page not present");
+        // }
+
+        
+        // No need to allocate a new physical page for the child, use the parent's
+        uint pa = PTE_ADDR(*pte_parent);
+        uint flags = PTE_FLAGS(*pte_parent);
+
+        // Map the physical page into the child's page table with the same permissions
+        mappages(np->pgdir, (void *)va, PGSIZE, pa, flags);
+
+        cur_mapping->ref++;
+      }
     }
   }
 
