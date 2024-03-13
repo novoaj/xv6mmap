@@ -15,5 +15,8 @@ int main(void)
     printf(1,"return addr: %x\n", address3);
     struct pgdirinfo pdinfo;
     getpgdirinfo(&pdinfo);
+    uint unmap1 = wunmap(0x60000000);
+    printf(1, "unmapping address 1: %u\n", unmap1);
+
     exit();
 } 
