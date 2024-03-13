@@ -250,9 +250,7 @@ void duplicate_private_mapping(struct proc *child, struct mem_block *mapping) {
         //cprintf("pte in duplicate_private_mapping after memmove: %d\n", pte);
 
         // Map the new page into the child's page table
-        if (mappages(child->pgdir, (void*)va, PGSIZE, V2P(mem), PTE_FLAGS(*pte)) < 0) {
-            panic("duplicate private mapping: mappages failed");
-        }
+        mappages(child->pgdir, (void*)va, PGSIZE, V2P(mem), PTE_FLAGS(*pte));
     }
 }
 
@@ -263,30 +261,24 @@ void add_shared_mapping(struct proc *child, struct mem_block *parent_mapping) {
     //char *mem;
 
     // Iterate through each page in the mapping
-    for (va = parent_mapping->start; va < parent_mapping->end; va += PGSIZE) {
-        // Find the parent's page table entry for this virtual address
-        pte_parent = walkpgdir(child->parent->pgdir, (void *)va, 0);
-        
-        // Ensure the page is present in the parent's page table
-        // if (!pte_parent || !(*pte_parent & PTE_P)) {
-        //     panic("add_shared_mapping: parent page not present");
-        // }
-        
-        // No need to allocate a new physical page for the child, use the parent's
-        uint pa = PTE_ADDR(*pte_parent);
-        uint flags = PTE_FLAGS(*pte_parent);
+  for (va = parent_mapping->start; va < parent_mapping->end; va += PGSIZE) {
+    // Find the parent's page table entry for this virtual address
+    pte_parent = walkpgdir(child->parent->pgdir, (void *)va, 0);
+    
+    // Ensure the page is present in the parent's page table
+    // if (!pte_parent || !(*pte_parent & PTE_P)) {
+    //     panic("add_shared_mapping: parent page not present");
+    // }
 
-        // Map the physical page into the child's page table with the same permissions
-        if (mappages(child->pgdir, (void *)va, PGSIZE, pa, flags) < 0) {
-            panic("add_shared_mapping: mappages failed for child");
-        }
-    }
+    
+    // No need to allocate a new physical page for the child, use the parent's
+    uint pa = PTE_ADDR(*pte_parent);
+    uint flags = PTE_FLAGS(*pte_parent);
 
-    // Increment the reference count for the shared mapping
-    // Depending on your reference count handling mechanism
-    // This step ensures that when the mapping is no longer used by any process,
-    // it can be properly deallocated.
-    parent_mapping->ref++;
+    // Map the physical page into the child's page table with the same permissions
+    mappages(child->pgdir, (void *)va, PGSIZE, pa, flags);
+
+  }
 }
 
 
