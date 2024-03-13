@@ -99,7 +99,7 @@ trap(struct trapframe *tf)
       }
     }
     if (inMapping){
-      cprintf("PGFAULT: %x\n\n", faultyAddr);
+      // cprintf("PGFAULT: %x\n\n", faultyAddr);
       // lazy allocation means one page at a time
       char* mem;
       mem = kalloc(); // kalloc to give us va that maps to pa
