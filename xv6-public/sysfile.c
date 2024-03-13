@@ -694,6 +694,19 @@ sys_wunmap(void) {
     filewrite(f, (void*)toFree->start, toFree->length);
   }
   // remove mapping in PT (walk pg dir) - keep in mind can be multiple pages
+  pte_t* pte;
+  for (int i = p->arr[location]->start; i < p->arr[location]->end; i += PGSIZE){
+    // get rid of all pde's associated with this mapping 
+    if (pte = walkpgdir(p->pgdir, i, 0) == 0){
+      if (*pte & PTE_P) { // present
+        cprintf("*pte: %p\n", *pte);
+        char* va = (char*)P2V(PTE_ADDR(*pte)); // get virtual addr corresponding to this PTE to free it
+        cprintf("freeing va: %p\n", va);
+        kfree(va);
+      }
+      *pte = 0;
+    }
+  }
   // remove mapping from data structure (remove operetion on p->arr)
   cprintf("mapping to remove at idx: %d\n", location);
   // p->arr[location]; // points to the mem_block we need to remove. check flags and see if file backed. if file backed, write to file
