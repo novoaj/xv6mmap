@@ -42,6 +42,7 @@ typedef struct mem_block {
     int length;
     int fd;
     int ref; // Tracks referneces through processess
+    int valid;
 } mem_block;
 
 // wmapinfo struct

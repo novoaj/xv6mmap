@@ -132,10 +132,23 @@ found:
   p->wmapinfo = wmap; // init wmap pointer in process to point to this struct
   // allocproc is called in fork method, rn reinitializing everything, ultimately that will depend on flags
   // init arr to all null pointers
-  // for (int i = 0; i < 16; i++){
-  //   memblock* new_block = (mem_block*)kalloc();
-  //   p->arr[i] = 0;
-  // }
+  for (int i = 0; i < MAX_WMMAP_INFO; i++){
+    mem_block* new_mapping = (mem_block*)kalloc();
+    if (new_mapping == 0){
+      panic("kalloc()");
+      // return FAILED;
+    }
+    new_mapping->end = 0;
+    new_mapping->fd = 0;
+    new_mapping->flags = 0;
+    new_mapping->length = 0;
+    new_mapping->ref = 0;
+    new_mapping->start = 0;
+    new_mapping->valid = 0;
+    // INIT fields for new_block to default vals
+
+    p->arr[i] = new_mapping;
+  }
   return p;
 }
 
