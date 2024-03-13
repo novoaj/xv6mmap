@@ -739,7 +739,7 @@ sys_wunmap(void) {
   if ((toFree->flags & MAP_ANONYMOUS) == 0 && (toFree->flags & MAP_PRIVATE) == 0){
     // if neither of these flags are set, write to file
     struct file* f = p->ofile[toFree->fd];
-    // f->off = 0;
+    f->off = 0;
     filewrite(f, (void*)toFree->start, toFree->length);
   }
   // remove mapping in PT (walk pg dir) - keep in mind can be multiple pages
