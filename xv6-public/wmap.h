@@ -33,5 +33,6 @@ struct wmapinfo {
     int addr[MAX_WMMAP_INFO];           // Starting address of mapping
     int length[MAX_WMMAP_INFO];         // Size of mapping
     int n_loaded_pages[MAX_WMMAP_INFO]; // Number of pages physically loaded into memory
+    int leftmostLoadedAddr[MAX_WMMAP_INFO]; // holds leftmostLoadedAddr for this mapping
 };
 #endif
