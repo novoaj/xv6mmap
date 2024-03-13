@@ -124,6 +124,7 @@ found:
     wmap->addr[i] = 0;
     wmap->length[i] = 0;
     wmap->n_loaded_pages[i] = 0;
+    wmap->leftmostLoadedAddr[i] = MAX_ADDR + 1;
   }
   p->wmapinfo = wmap; // init wmap pointer in process to point to this struct
   // allocproc is called in fork method, rn reinitializing everything, ultimately that will depend on flags
