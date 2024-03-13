@@ -466,21 +466,30 @@ int insert_mapping(uint start, uint end, int flags, int length, int numMappings,
     return FAILED; // Array is full, return error code
   }
   // arr[idx] is initially NULL (0), need it to point to a mem_block struct after this insert method. do we need to kalloc?
-  mem_block* new_mapping = (mem_block*)kalloc();
-  if (new_mapping == 0){
-    panic("kalloc()");
-    return FAILED;
-  }
-  new_mapping->start = start;
-  new_mapping->end = end;
-  new_mapping->flags = flags;
-  new_mapping->length = length;
-  new_mapping->fd = fd;
-  new_mapping->ref = 1; // needs to probably increment it, maybe we can init mem_blocks with valid pointer values in proc.c and then have a 'valid' int associated with each one rather than checking for 'null' ptrs
+  // mem_block* new_mapping = (mem_block*)kalloc();
+  // if (new_mapping == 0){
+  //   panic("kalloc()");
+  //   return FAILED;
+  // }
+  // new_mapping->start = start;
+  // new_mapping->end = end;
+  // new_mapping->flags = flags;
+  // new_mapping->length = length;
+  // new_mapping->fd = fd;
+  // new_mapping->ref += 1; // needs to probably increment it, maybe we can init mem_blocks with valid pointer values in proc.c and then have a 'valid' int associated with each one rather than checking for 'null' ptrs
   // find index to insert into
 
     if (numMappings == 0){ // empty case
-      p->arr[0] = new_mapping;
+      // p->arr[0] = new_mapping;
+      p->arr[0]->valid = 1; // set mem_block values
+      p->arr[0]->end = end;
+      p->arr[0]->flags = flags;
+      p->arr[0]->length = length;
+      p->arr[0]->start = start;
+      p->arr[0]->fd = fd;
+      p->arr[0]->ref += 1;
+
+      // set wmapinfo at mapping 0
       p->wmapinfo->addr[0] = p->arr[0]->start;
       p->wmapinfo->length[0] = p->arr[0]->length;
       p->wmapinfo->total_mmaps = p->wmapinfo->total_mmaps + 1;
@@ -493,7 +502,16 @@ int insert_mapping(uint start, uint end, int flags, int length, int numMappings,
     // Find the correct position to insert the new mapping
     int insert_idx = numMappings;
     while (insert_idx > 0 && p->arr[insert_idx - 1]->start > start) { // if ith mapping belongs before i-1 mapping, shift i-1 to i (right shift)
-      p->arr[insert_idx] = p->arr[insert_idx - 1];
+      // p->arr[insert_idx] = p->arr[insert_idx - 1]; 
+      // shift values at mem_block pointers to the right?
+      p->arr[insert_idx]->valid = p->arr[insert_idx - 1]->valid; // shift mem_block values
+      p->arr[insert_idx]->end = p->arr[insert_idx - 1]->end;
+      p->arr[insert_idx]->flags = p->arr[insert_idx - 1]->flags;
+      p->arr[insert_idx]->length = p->arr[insert_idx - 1]->length;
+      p->arr[insert_idx]->fd = p->arr[insert_idx - 1]->fd;
+      p->arr[insert_idx]->ref = p->arr[insert_idx - 1]->ref;
+      p->arr[insert_idx]->start = p->arr[insert_idx - 1]->start;
+      // shifting values at wmapinfo arrays
       p->wmapinfo->addr[insert_idx] = p->wmapinfo->addr[insert_idx - 1];
       p->wmapinfo->length[insert_idx] = p->wmapinfo->length[insert_idx - 1];
       p->wmapinfo->n_loaded_pages[insert_idx] = p->wmapinfo->n_loaded_pages[insert_idx - 1];
@@ -501,13 +519,20 @@ int insert_mapping(uint start, uint end, int flags, int length, int numMappings,
       insert_idx--;
     }
     // insert mapping
-    p->arr[insert_idx] = new_mapping;
+    p->arr[insert_idx]->valid = 1; // set mem_block values
+    p->arr[insert_idx]->start = start;
+    p->arr[insert_idx]->end = end;
+    p->arr[insert_idx]->flags = flags;
+    p->arr[insert_idx]->length = length;
+    p->arr[insert_idx]->fd = fd;
+    p->arr[insert_idx]->ref += 1;
+    // insert wmap
     p->wmapinfo->addr[insert_idx] = p->arr[insert_idx]->start;
     p->wmapinfo->length[insert_idx] = p->arr[insert_idx]->length;
     p->wmapinfo->total_mmaps = p->wmapinfo->total_mmaps + 1;
     // p->wmapinfo->n_loaded_pages[insert_idx] = PGROUNDUP(p->arr[insert_idx]->length) / PGSIZE;
     cprintf("block inserted - idx: %d, start: %x, end: %x, length: %d, flags: %d\n", insert_idx, start, end, flags, length);
-    return new_mapping->start;
+    return p->arr[insert_idx]->start;
 }
 
 /*
@@ -521,22 +546,13 @@ int remove_mapping(uint addr) {
 
   // Locate the address to remove
   for (int i = 0; i < MAX_WMMAP_INFO; i++) {
-    if (p->arr[i] != 0 && p->arr[i]->start == addr) {
+    if (p->arr[i]->valid != 0 && p->arr[i]->start == addr) {
       found = i;
       cprintf("remove item at %d\n", found);
       break;
     }
   }
 
-  // Remove page table mapping
-  // mem_block *mapping = p->arr[found];
-  // for (uint va = mapping->start; va < mapping->end; va += PGSIZE) {
-  //   pte_t *pte = walkpgdir(p->pgdir, (void *)va, 0);
-  //   if (pte && (*pte & PTE_P)) {
-  //     // Clear the page table entry
-  //     *pte = 0;
-  //   }
-  // }
   p->arr[found]->ref -= 1; 
   cprintf("this mapping has: %d references\n", p->arr[found]->ref);
   // no other procs hold this mapping
@@ -548,11 +564,18 @@ int remove_mapping(uint addr) {
     p->wmapinfo->leftmostLoadedAddr[found] = 0;
     p->wmapinfo->n_loaded_pages[found] = 0;
     p->wmapinfo->total_mmaps -= 1;
-    cprintf("%d\n", p->wmapinfo->total_mmaps);
+    cprintf("total mmaps: %d\n", p->wmapinfo->total_mmaps);
 
-    p->arr[found] = 0; // assign to null pointer
+    p->arr[found]->valid = 0; // assign to invalid
     for (int i = found; i < MAX_WMMAP_INFO - 1; i++) { // left shift items starting from i+1 to fill gap
-      p->arr[i] = p->arr[i + 1]; // left shift items in p->arr
+      //p->arr[i] = p->arr[i + 1]; // left shift items in p->arr
+      p->arr[found]->valid = p->arr[found + 1]->valid; // shift mem_block values
+      p->arr[found]->end = p->arr[found + 1]->end;
+      p->arr[found]->flags = p->arr[found + 1]->flags;
+      p->arr[found]->length = p->arr[found + 1]->length;
+      p->arr[found]->fd = p->arr[found + 1]->fd;
+      p->arr[found]->ref = p->arr[found + 1]->ref;
+      p->arr[found]->start = p->arr[found + 1]->start;
       cprintf("left shifting...\n");
       // leftshift items in p->wmapinfo arrays
       p->wmapinfo->addr[found] = p->wmapinfo->addr[found + 1];
@@ -561,10 +584,8 @@ int remove_mapping(uint addr) {
       p->wmapinfo->n_loaded_pages[found] = p->wmapinfo->n_loaded_pages[found + 1];
 
     }
-    
   }
   // Preforem left shit to fill the gap
-  
   return 1;
 }
 
@@ -605,7 +626,7 @@ sys_wmap(void){
 
     // check if provided addr is going to fit in our existing mmappings
     for (int i = 0; i < MAX_WMMAP_INFO; i++){
-      if (p->arr[i] != 0){
+      if (p->arr[i]->valid != 0){
         // will this mapping overlap with an existing one?
         if (addr > p->arr[i]->start && addr < p->arr[i]->end){ // start doesn't fall in the middle of an existing mapping
           return FAILED;
@@ -623,9 +644,9 @@ sys_wmap(void){
       return FAILED;
     }
     // print array after insert:
-    cprintf("\n\narray after inserting: \n\n");
+    cprintf("\n\nmem_block array after inserting: \n\n");
     for (int i = 0; i < MAX_WMMAP_INFO; i++){
-      cprintf("%p\n",p->arr[i]);
+      cprintf("valid: %d, pointer: %p, startaddr: %x \n",p->arr[i]->valid, p->arr[i], p->arr[i]->start);
     }
     return insertAddr;
   } else{
@@ -646,7 +667,7 @@ sys_wmap(void){
       // if curStart - prevEnd > PGROUNDUP(length), then there is enough room to fit the block starting at prevEnd + 1
 
       // if this pointer is null, we can assign it to prevEnd+1
-      if (p->arr[i] == 0) {
+      if (p->arr[i]->valid == 0) {
         leftmostAddr = prevEnd + 1;
         break; 
       }
@@ -665,16 +686,10 @@ sys_wmap(void){
       if (insertAddr == FAILED){
         return FAILED;
       }
-      // succesful insert, update wmapinfo
-      // p->wmapinfo->addr[p->wmapinfo->total_mmaps] = insertAddr;
-      // p->wmapinfo->n_loaded_pages[p->wmapinfo->total_mmaps] = PGROUNDUP(length) / PGSIZE;
-      // p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGROUNDUP(length);
-      // p->wmapinfo->total_mmaps++;
-
       // print array after insert:
-      cprintf("\n\narray after inserting: \n\n");
+      cprintf("\n\nmem_block array after inserting: \n\n");
       for (int i = 0; i < MAX_WMMAP_INFO; i++){
-        cprintf("%p\n",p->arr[i]);
+        cprintf("valid: %d, pointer: %p, startaddr: %x \n",p->arr[i]->valid, p->arr[i], p->arr[i]->start);
       }
       return insertAddr;
     
@@ -742,6 +757,10 @@ sys_wunmap(void) {
   // TODO: consider flags (if MAP_SHARED, write mem data back to the file)
   // TODO: write remove method for out mmap array (needs to keep array in order and contiguous - no holes in array, when removing ith index, i+1 onward should shift left in arr)
   remove_mapping(p->arr[location]->start);
+  cprintf("\n\nmem_block array after removing: \n\n");
+  for (int i = 0; i < MAX_WMMAP_INFO; i++){
+    cprintf("valid: %d, pointer: %p, startaddr: %x \n",p->arr[i]->valid, p->arr[i], p->arr[i]->start);
+  }
   return SUCCESS;
 }
 
@@ -771,7 +790,7 @@ int sys_getpgdirinfo(){
       // cprintf("*pde: %x\n", *pde);
       // go to PT that this PDE points to
       pte_t* pgTable = (pte_t*)P2V(PTE_ADDR(*pde));
-      cprintf("pt: %x\n", pgTable);
+      // cprintf("pt: %x\n", pgTable);
       // iter through PTEs
       for (int j = 0; j < NPTENTRIES; j++){
         pte_t* pte = &pgTable[j]; // PPN and offset

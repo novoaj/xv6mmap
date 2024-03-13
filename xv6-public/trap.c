@@ -89,7 +89,7 @@ trap(struct trapframe *tf)
     int location;
     // find if page is in mapping
     for (int i = 0; i < MAX_WMMAP_INFO; i++){
-      if (p->arr[i] != 0){ // is this faultyAddr a part of an existing mapping?
+      if (p->arr[i]->valid != 0){ // is this faultyAddr a part of an existing mapping?
         if (faultyAddr >= p->arr[i]->start && faultyAddr <= p->arr[i]->end){
           inMapping = 1;
           mapping = p->arr[i];
