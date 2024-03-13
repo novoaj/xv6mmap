@@ -354,6 +354,7 @@ fork(void)
 
         // Map the new page into the child's page table
         mappages(np->pgdir, (void*)va, PGSIZE, V2P(mem), PTE_FLAGS(*pte));
+        cprintf("pte in duplicate_private_mapping: %p\n", (void*)pte);
       }
     } else if (cur_mapping->flags & MAP_SHARED) {
       // TODO need to add reference update when a mapping
