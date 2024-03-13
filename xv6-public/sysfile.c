@@ -552,6 +552,9 @@ int remove_mapping(uint addr) {
       break;
     }
   }
+  if (found == -1){
+    return 0;
+  }
 
   p->arr[found]->ref -= 1; 
   cprintf("this mapping has: %d references\n", p->arr[found]->ref);
@@ -766,7 +769,11 @@ sys_wunmap(void) {
   // NOTE: these ^ don't neccesarily happen here, most logic is probably going to be written in fork or exit or allocproc. 
   // TODO: consider flags (if MAP_SHARED, write mem data back to the file)
   // TODO: write remove method for out mmap array (needs to keep array in order and contiguous - no holes in array, when removing ith index, i+1 onward should shift left in arr)
-  remove_mapping(p->arr[location]->start);
+  int result = remove_mapping(p->arr[location]->start);
+  if (result == 0){
+    cprintf("error in remove\n");
+    return FAILED;
+  }
   cprintf("\n\nmem_block array after removing: \n\n");
   for (int i = 0; i < MAX_WMMAP_INFO; i++){
     cprintf("valid: %d, pointer: %p, startaddr: %x \n",p->arr[i]->valid, p->arr[i], p->arr[i]->start);
