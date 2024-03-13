@@ -565,33 +565,30 @@ int remove_mapping(uint addr) {
     p->wmapinfo->n_loaded_pages[found] = 0;
     p->wmapinfo->total_mmaps -= 1;
     cprintf("total mmaps: %d\n", p->wmapinfo->total_mmaps);
-
+    // wipe arr[found] data and swap with arr[15] data before shifting?
+    p->arr[found]->end = 0;
+    p->arr[found]->flags = 0;
+    p->arr[found]->length = 0;
+    p->arr[found]->fd = 0;
+    p->arr[found]->ref = 0;
     p->arr[found]->valid = 0; // assign to invalid
     for (int i = found; i < MAX_WMMAP_INFO - 1; i++) { // left shift items starting from i+1 to fill gap
       //p->arr[i] = p->arr[i + 1]; // left shift items in p->arr
-      p->arr[found]->valid = p->arr[found + 1]->valid; // shift mem_block values
-      p->arr[found]->end = p->arr[found + 1]->end;
-      p->arr[found]->flags = p->arr[found + 1]->flags;
-      p->arr[found]->length = p->arr[found + 1]->length;
-      p->arr[found]->fd = p->arr[found + 1]->fd;
-      p->arr[found]->ref = p->arr[found + 1]->ref;
-      p->arr[found]->start = p->arr[found + 1]->start;
-      cprintf("left shifting...\n");
+      cprintf("left shifting... %d: %x, %d: %x\n", i, p->arr[i]->start, i+1, p->arr[i + 1]->start);
+      p->arr[i]->valid = p->arr[i + 1]->valid; // shift mem_block values
+      p->arr[i]->end = p->arr[i + 1]->end;
+      p->arr[i]->flags = p->arr[i + 1]->flags;
+      p->arr[i]->length = p->arr[i + 1]->length;
+      p->arr[i]->fd = p->arr[i + 1]->fd;
+      p->arr[i]->ref = p->arr[i + 1]->ref;
+      p->arr[i]->start = p->arr[i + 1]->start;
       // leftshift items in p->wmapinfo arrays
-      p->wmapinfo->addr[found] = p->wmapinfo->addr[found + 1];
-      p->wmapinfo->length[found] = p->wmapinfo->length[found + 1];
-      p->wmapinfo->leftmostLoadedAddr[found] = p->wmapinfo->leftmostLoadedAddr[found + 1];
-      p->wmapinfo->n_loaded_pages[found] = p->wmapinfo->n_loaded_pages[found + 1];
+      p->wmapinfo->addr[i] = p->wmapinfo->addr[i + 1];
+      p->wmapinfo->length[i] = p->wmapinfo->length[i + 1];
+      p->wmapinfo->leftmostLoadedAddr[i] = p->wmapinfo->leftmostLoadedAddr[i + 1];
+      p->wmapinfo->n_loaded_pages[i] = p->wmapinfo->n_loaded_pages[i + 1];
 
     }
-    //int lastIdx = p->wmapinfo->total_mmaps - 1;
-    //memset(p->arr[lastIdx], 0, sizeof(mem_block)); // Assuming kfree or a similar function for cleanup
-    // p->wmapinfo->addr[lastIdx] = 0;
-    // p->wmapinfo->length[lastIdx] = 0;
-    // p->wmapinfo->n_loaded_pages[lastIdx] = 0;
-
-    // Adjust the count of total mappings
-    //p->wmapinfo->total_mmaps--;
   }
   // Preforem left shit to fill the gap
   return 1;
