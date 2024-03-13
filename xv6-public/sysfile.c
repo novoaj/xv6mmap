@@ -487,7 +487,7 @@ int insert_mapping(uint start, uint end, int flags, int length, int numMappings,
       p->arr[0]->length = length;
       p->arr[0]->start = start;
       p->arr[0]->fd = fd;
-      p->arr[0]->ref += 1;
+      p->arr[0]->ref = 1;
 
       // set wmapinfo at mapping 0
       p->wmapinfo->addr[0] = p->arr[0]->start;
@@ -525,7 +525,7 @@ int insert_mapping(uint start, uint end, int flags, int length, int numMappings,
     p->arr[insert_idx]->flags = flags;
     p->arr[insert_idx]->length = length;
     p->arr[insert_idx]->fd = fd;
-    p->arr[insert_idx]->ref += 1;
+    p->arr[insert_idx]->ref = 1;
     // insert wmap
     p->wmapinfo->addr[insert_idx] = p->arr[insert_idx]->start;
     p->wmapinfo->length[insert_idx] = p->arr[insert_idx]->length;
@@ -555,8 +555,9 @@ int remove_mapping(uint addr) {
   if (found == -1){
     return 0;
   }
-
-  p->arr[found]->ref -= 1; 
+// freevm in vm.c, frees all pages in table
+// do i decrement in remove/wunmap?
+  p->arr[found]->ref -= 1; //
   cprintf("this mapping has: %d references\n", p->arr[found]->ref);
   // no other procs hold this mapping
   if (p->arr[found]->ref == 0) {
@@ -654,7 +655,7 @@ sys_wmap(void){
     // print array after insert:
     cprintf("\n\nmem_block array after inserting: \n\n");
     for (int i = 0; i < MAX_WMMAP_INFO; i++){
-      cprintf("valid: %d, pointer: %p, startaddr: %x \n",p->arr[i]->valid, p->arr[i], p->arr[i]->start);
+      cprintf("valid: %d, pointer: %p, startaddr: %x, refcount: %d\n",p->arr[i]->valid, p->arr[i], p->arr[i]->start, p->arr[i]->ref);
     }
     return insertAddr;
   } else{
@@ -697,7 +698,7 @@ sys_wmap(void){
       // print array after insert:
       cprintf("\n\nmem_block array after inserting: \n\n");
       for (int i = 0; i < MAX_WMMAP_INFO; i++){
-        cprintf("valid: %d, pointer: %p, startaddr: %x \n",p->arr[i]->valid, p->arr[i], p->arr[i]->start);
+        cprintf("valid: %d, pointer: %p, startaddr: %x, refcount: %d\n",p->arr[i]->valid, p->arr[i], p->arr[i]->start, p->arr[i]->ref);
       }
       return insertAddr;
     
@@ -776,7 +777,7 @@ sys_wunmap(void) {
   }
   cprintf("\n\nmem_block array after removing: \n\n");
   for (int i = 0; i < MAX_WMMAP_INFO; i++){
-    cprintf("valid: %d, pointer: %p, startaddr: %x \n",p->arr[i]->valid, p->arr[i], p->arr[i]->start);
+    cprintf("valid: %d, pointer: %p, startaddr: %x, refcount: %d\n",p->arr[i]->valid, p->arr[i], p->arr[i]->start, p->arr[i]->ref);
   }
   return SUCCESS;
 }
