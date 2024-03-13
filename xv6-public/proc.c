@@ -228,12 +228,16 @@ void duplicate_private_mapping(struct proc *child, struct mem_block *mapping) {
         // Walk the parent's page directory to find the PTE for the current VA
         
         pte = walkpgdir(child->parent->pgdir, (void *)va, 0);
-        cprintf("pte in duplicate_private_mapping: %d\n", pte);
-        // if (!pte || !(*pte & PTE_P)) {
+        cprintf("child page directory: %p\n", (void*)child->pgdir);
+        cprintf("child->parent page directory: %p\n", (void*)child->parent->pgdir);
+        cprintf("pte in duplicate_private_mapping: %p\n", (void*)pte);
+
         //     panic("duplicate private mapping: parent page not present");
         // }
 
         // Allocate a new physical page for the child
+        // TODO I think the addressing is okay but maybe a problem with the copying of page tabels
+        // Could also be incorectly error checking on my part
         mem = kalloc();
         // if (!mem) {
         //     panic("duplicate private mapping: kalloc failed");
@@ -242,7 +246,8 @@ void duplicate_private_mapping(struct proc *child, struct mem_block *mapping) {
         // Copy the content from the parent's page to the newly allocated page
         pa = PTE_ADDR(*pte);
         memmove(mem, (char*)P2V(pa), PGSIZE);
-        cprintf("pte in duplicate_private_mapping after memmove: %d\n", pte);
+        //cprintf("mem value: %d\n", mem);
+        //cprintf("pte in duplicate_private_mapping after memmove: %d\n", pte);
 
         // Map the new page into the child's page table
         if (mappages(child->pgdir, (void*)va, PGSIZE, V2P(mem), PTE_FLAGS(*pte)) < 0) {
