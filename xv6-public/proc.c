@@ -484,7 +484,6 @@ exit(void)
   end_op();
   curproc->cwd = 0;
 
-  //cleanup_wmapinfo(curproc);
 
   acquire(&ptable.lock);
 
