@@ -118,6 +118,11 @@ trap(struct trapframe *tf)
         fileread(f, (char*) faultyAddr, PGSIZE);
       }
       // here we consider the page to be "loaded"
+      // maybe we keep track of the the start addr of the loaded page/pages
+      // this is updated if faulty addr is >= ith start and < ith end and < curLeftmostLoadedAddr
+      if (p->wmapinfo->leftmostLoadedAddr[location] > faultyAddr) {
+        p->wmapinfo->leftmostLoadedAddr[location] = faultyAddr;
+      }
       p->wmapinfo->n_loaded_pages[location] += 1; 
       // p->wmapinfo->addr[p->wmapinfo->total_mmaps] = faultyAddr;
       // p->wmapinfo->length[p->wmapinfo->total_mmaps] = PGSIZE;

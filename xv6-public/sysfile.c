@@ -681,7 +681,6 @@ sys_wunmap(void) {
       break;
     }
   }
-
   if (mappingExists == 0){ // no existing mapping with start = addr
     return FAILED;
   }
@@ -695,16 +694,16 @@ sys_wunmap(void) {
   }
   // remove mapping in PT (walk pg dir) - keep in mind can be multiple pages
   pte_t* pte;
-  for (int i = p->arr[location]->start; i < p->arr[location]->end; i += PGSIZE){
+  for (int i = p->wmapinfo->leftmostLoadedAddr[location]; i < p->wmapinfo->leftmostLoadedAddr[location] + PGSIZE*p->wmapinfo->n_loaded_pages[location]; i += PGSIZE){
     // get rid of all pde's associated with this mapping 
-    if (pte = walkpgdir(p->pgdir, i, 0) == 0){
-      if (*pte & PTE_P) { // present
+    // only if this is present in wmap info
+    cprintf("%x\n", i);
+    if ((pte = walkpgdir(p->pgdir, (void*) i, 0)) == 0){ // issue is that these va's aren't in pgdir until pg fault happens
         cprintf("*pte: %p\n", *pte);
-        char* va = (char*)P2V(PTE_ADDR(*pte)); // get virtual addr corresponding to this PTE to free it
-        cprintf("freeing va: %p\n", va);
-        kfree(va);
-      }
-      *pte = 0;
+        uint physical_address = PTE_ADDR(*pte); // get virtual addr corresponding to this PTE to free it
+        cprintf("freeing va");
+        kfree(P2V(physical_address));
+        *pte = 0;
     }
   }
   // remove mapping from data structure (remove operetion on p->arr)
