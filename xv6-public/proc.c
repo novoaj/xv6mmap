@@ -333,6 +333,7 @@ fork(void)
     if (cur_mapping->flags & MAP_PRIVATE) {
       // copy the ith mapping from parent to child
         cprintf("copying mapping from parent: %d - %p, to child: %d - %p\n", i, curproc->arr[i], i, np->arr[i]);
+        cprintf("new process refs: %d parent process ref: %d\n",np->arr[i]->ref, curproc->arr[i]->ref + 1);
        // np->arr[i] = curproc->arr[i];
         np->arr[i]->end = curproc->arr[i]->end;
         np->arr[i]->fd = curproc->arr[i]->fd;
@@ -344,8 +345,8 @@ fork(void)
 
         np->wmapinfo->addr[i] = curproc->wmapinfo->addr[i];
         np->wmapinfo->leftmostLoadedAddr[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
-        np->wmapinfo->length[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
-        np->wmapinfo->n_loaded_pages[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
+        np->wmapinfo->length[i] = curproc->wmapinfo->length[i];
+        np->wmapinfo->n_loaded_pages[i] = curproc->wmapinfo->n_loaded_pages[i];
         np->wmapinfo->total_mmaps += 1;
       for (uint va = cur_mapping->start; va < cur_mapping->end; va += PGSIZE) {
         // Walk the parent's page directory to find the PTE for the current VA
@@ -371,23 +372,44 @@ fork(void)
       cprintf("map shared case in fork\n\n");
       np->arr[i] = curproc->arr[i];
       np->arr[i]->ref++;
-      np->wmapinfo = curproc->wmapinfo;
+      // np->wmapinfo = curproc->wmapinfo;
+      // np->arr[i]->end = curproc->arr[i]->end;
+      // np->arr[i]->fd = curproc->arr[i]->fd;
+      // np->arr[i]->flags = curproc->arr[i]->flags;
+      // np->arr[i]->length = curproc->arr[i]->length;
+      // np->arr[i]->ref = curproc->arr[i]->ref;
+      // np->arr[i]->start = curproc->arr[i]->start;
+      // np->arr[i]->valid = curproc->arr[i]->valid;
+
+      np->wmapinfo->addr[i] = curproc->wmapinfo->addr[i];
+      np->wmapinfo->leftmostLoadedAddr[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
+      np->wmapinfo->length[i] = curproc->wmapinfo->length[i];
+      np->wmapinfo->n_loaded_pages[i] = curproc->wmapinfo->n_loaded_pages[i];
+      np->wmapinfo->total_mmaps += 1;
+      cprintf("entering for loop\n");
       // is forked so that exit can properly close mappings
       for (uint va = cur_mapping->start; va < cur_mapping->end; va += PGSIZE) {
         // Find the parent's page table entry for this virtual address
         // how can we find physical address from virtual?
+        // cprintf("walking pgdir\n\n");
         pte_t *pte_parent = walkpgdir(curproc->pgdir, (void *)va, 0);
-        uint pa = (uint)P2V(PTE_ADDR(*pte_parent));
+        // cprintf("after walk pgdir\n");
+        uint pa = (uint) (PTE_ADDR(*pte_parent));
         // uint flags = PTE_FLAGS(*pte_parent);
         // Map the physical page into the child's page table with the same permissions
-        memset((void*)pa, 0, PGSIZE);
-        if (mappages(np->pgdir, (void *)va, PGSIZE, V2P(pa), PTE_W | PTE_U) != 0){
+        if (mappages(np->pgdir, (void *)va, PGSIZE, (pa), PTE_W | PTE_U) != 0){
           cprintf("mappages failed in fork\n\n");
           kfree((char*) pa);
           // np->killed = 1;
         }
       }
     }
+  }
+  for (int i = 0; i < MAX_WMMAP_INFO; i++){
+    cprintf("curproc: \nvalid: %d, pointer: %p, startaddr: %x, refcount: %d, length %d\n",curproc->arr[i]->valid, curproc->arr[i], curproc->arr[i]->start, curproc->arr[i]->ref, curproc->arr[i]->length);
+  }
+  for (int i = 0; i < MAX_WMMAP_INFO; i++){
+    cprintf("np: \nvalid: %d, pointer: %p, startaddr: %x, refcount: %d length: %d\n",np->arr[i]->valid, np->arr[i], np->arr[i]->start, np->arr[i]->ref, curproc->arr[i]->length);
   }
 
   pid = np->pid;
@@ -503,7 +525,9 @@ exit(void)
   // free pointers in proc struct
   kfree((char*)curproc->wmapinfo);
   for (int i = 0; i < MAX_WMMAP_INFO; i++){
-    kfree((char*)curproc->arr[i]);
+    if (curproc->arr[i]->ref == 1){ // free if this is the only ref
+      kfree((char*)curproc->arr[i]);
+    }
   }
   
   cprintf("deallocing uvm...\n\n");
