@@ -584,6 +584,14 @@ int remove_mapping(uint addr) {
       p->wmapinfo->n_loaded_pages[found] = p->wmapinfo->n_loaded_pages[found + 1];
 
     }
+    //int lastIdx = p->wmapinfo->total_mmaps - 1;
+    //memset(p->arr[lastIdx], 0, sizeof(mem_block)); // Assuming kfree or a similar function for cleanup
+    // p->wmapinfo->addr[lastIdx] = 0;
+    // p->wmapinfo->length[lastIdx] = 0;
+    // p->wmapinfo->n_loaded_pages[lastIdx] = 0;
+
+    // Adjust the count of total mappings
+    //p->wmapinfo->total_mmaps--;
   }
   // Preforem left shit to fill the gap
   return 1;
@@ -734,17 +742,22 @@ sys_wunmap(void) {
     filewrite(f, (void*)toFree->start, toFree->length);
   }
   // remove mapping in PT (walk pg dir) - keep in mind can be multiple pages
-  pte_t* pte;
-  for (int i = p->wmapinfo->leftmostLoadedAddr[location]; i < p->wmapinfo->leftmostLoadedAddr[location] + PGSIZE*p->wmapinfo->n_loaded_pages[location]; i += PGSIZE){
+  //pte_t* pte;
+  for (int va = p->wmapinfo->leftmostLoadedAddr[location]; va < p->wmapinfo->leftmostLoadedAddr[location] + PGSIZE*p->wmapinfo->n_loaded_pages[location]; va += PGSIZE){
     // get rid of all pde's associated with this mapping 
     // only if this is present in wmap info
-    cprintf("%x\n", i);
-    if ((pte = walkpgdir(p->pgdir, (void*) i, 0)) == 0){ // issue is that these va's aren't in pgdir until pg fault happens
-        cprintf("*pte: %p\n", *pte);
-        uint physical_address = PTE_ADDR(*pte); // get virtual addr corresponding to this PTE to free it
-        cprintf("freeing va");
-        kfree(P2V(physical_address));
-        *pte = 0;
+    pte_t* pte = walkpgdir(p->pgdir, (void*)va, 0);
+    if (pte != 0 && (*pte & PTE_P)) { // Ensure PTE exists and page is present
+      uint pa = PTE_ADDR(*pte); // Get physical address from PTE
+
+      // Clear the page table entry
+      *pte = 0;
+
+      // Flush the TLB for this specific virtual address to ensure CPU uses updated PTE
+      asm volatile("invlpg (%0)" :: "r"(va) : "memory");
+
+      // Free the physical page by converting physical address to its corresponding kernel virtual address
+      kfree(P2V(pa));
     }
   }
   // remove mapping from data structure (remove operetion on p->arr)
