@@ -360,9 +360,10 @@ fork(void)
         cprintf("memmove in MAP_PRIVATE case\n");
         memmove(mem, P2V(PTE_ADDR(*pte)), PGSIZE);
 
-        if(mappages(np->pgdir, (void*)va, PGSIZE, (uint) mem, PTE_FLAGS(*pte)) != 0){
-          cprintf("before kfreeing in fork for MAP_PRIVATE\n\n");
+        if(mappages(np->pgdir, (void*)va, PGSIZE, (uint) mem, PTE_W | PTE_U) != 0){
+          cprintf("kfree in fork for MAP_PRIVATE\n\n");
           kfree(mem);
+          // np->killed=1;
           cprintf("fork complete\n\n");
         }
       }
@@ -371,31 +372,19 @@ fork(void)
       np->arr[i] = curproc->arr[i];
       np->arr[i]->ref++;
       np->wmapinfo = curproc->wmapinfo;
-      // np->arr[i]->end = curproc->arr[i]->end;
-      // np->arr[i]->fd = curproc->arr[i]->fd;
-      // np->arr[i]->flags = curproc->arr[i]->flags;
-      // np->arr[i]->length = curproc->arr[i]->length;
-      // np->arr[i]->ref = curproc->arr[i]->ref;
-      // np->arr[i]->start = curproc->arr[i]->start;
-      // np->arr[i]->valid = curproc->arr[i]->valid;
-
-      // np->wmapinfo->addr[i] = curproc->wmapinfo->addr[i];
-      // np->wmapinfo->leftmostLoadedAddr[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
-      // np->wmapinfo->length[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
-      // np->wmapinfo->n_loaded_pages[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
-      // np->wmapinfo->total_mmaps += 1;
-      // TODO need to add reference update when a mapping
       // is forked so that exit can properly close mappings
       for (uint va = cur_mapping->start; va < cur_mapping->end; va += PGSIZE) {
         // Find the parent's page table entry for this virtual address
+        // how can we find physical address from virtual?
         pte_t *pte_parent = walkpgdir(curproc->pgdir, (void *)va, 0);
-        uint pa = PTE_ADDR(*pte_parent);
-        uint flags = PTE_FLAGS(*pte_parent);
-
+        uint pa = (uint)P2V(PTE_ADDR(*pte_parent));
+        // uint flags = PTE_FLAGS(*pte_parent);
         // Map the physical page into the child's page table with the same permissions
-        mappages(np->pgdir, (void *)va, PGSIZE, pa, flags);
-
-        cur_mapping->ref++;
+        if (mappages(np->pgdir, (void *)va, PGSIZE, pa, PTE_W | PTE_U) != 0){
+          cprintf("mappages failed in fork\n\n");
+          kfree((char*) pa);
+          // np->killed = 1;
+        }
       }
     }
   }
@@ -518,7 +507,6 @@ exit(void)
   curproc->state = ZOMBIE;
   sched();
   panic("zombie exit");
-  cprintf("\n\nexit returning...\n\n");
 }
 
 // Wait for a child process to exit and return its pid.
