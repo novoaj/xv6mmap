@@ -1,4 +1,4 @@
-Name: Max Mitchell
+Name: Max Mitchell\n
 cs Login: mmitchell
 Wisc ID: memitchell2
 Wisc Email: memitchell2@wisc.edu
