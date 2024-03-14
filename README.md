@@ -4,9 +4,9 @@ Wisc ID: memitchell2
 Wisc Email: memitchell2@wisc.edu  
 
 Name: Jared Novoa  
-cs Login: novoa
-Wisc ID: jnovoa
-Wisc Email: jnovoa@wisc.edu
+cs Login: novoa  
+Wisc ID: jnovoa  
+Wisc Email: jnovoa@wisc.edu  
 
 Implementation Status:  
 Mostly Functional 
