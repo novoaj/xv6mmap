@@ -782,7 +782,110 @@ sys_wunmap(void) {
 }
 
 uint sys_wremap(){
-  return -1;
+
+  uint oldaddr;
+  argint(0, (int*)&oldaddr);
+  int oldsize;
+  argint(1, &oldsize);
+  int newsize;
+  argint(2, &newsize);
+  int flag;
+  argint(3, &flag);
+
+  // Checks address to see if it is page alligned
+  if (oldaddr % PGSIZE != 0){
+    cprintf("Address not page aligned\n");
+    return FAILED;
+  }
+  // Checks that the address is allocated
+    struct proc* p = myproc();
+  int mappingExists = 0;
+  int location = 0;
+  for (int i = 0; i < p->wmapinfo->total_mmaps; i++){
+    // if we can't find the mmap to remove, return FAILED
+    if (p->arr[i]->valid == 1 && p->arr[i]->start == oldaddr){
+      mappingExists = 1;
+      location = i;
+      break;
+    }
+  }
+  int old_flags = p->arr[location]->flags;
+  int old_fd = p->arr[location]->fd;
+  // int old_ref = p->arr[location]->ref;
+  if (mappingExists == 0) {
+    return FAILED;
+  }
+  uint end = oldaddr + PGROUNDUP(newsize);
+  if (p->arr[location + 1]->valid == 1 && (end < p->arr[location + 1]->start)) {
+  
+    int x = remove_mapping(oldaddr);
+    if (x != 1) {
+      return FAILED;
+    }
+    int x2 = insert_mapping(oldaddr, end - 1, old_flags, newsize, p->wmapinfo->total_mmaps, old_fd);
+    if (x2 != -1) {
+      return x2;
+    }
+    return FAILED;
+  }
+  else if (p->arr[location + 1]->valid == 0) {
+    if (end > MAX_ADDR){
+      return FAILED;
+    }
+    else {
+    
+      int x = remove_mapping(oldaddr);
+      if (x != 1) {
+        return FAILED;
+      }
+      int x2 = insert_mapping(oldaddr, end - 1, old_flags, newsize, p->wmapinfo->total_mmaps, old_fd);
+      if (x2 != -1) {
+        return x2;
+      }
+      return FAILED;
+    }
+  }
+  else if (flag == 0){
+    return FAILED;
+  }
+  
+  int x3 = remove_mapping(oldaddr);
+  if (x3 != 1){
+    return FAILED;
+  }
+
+  // Attempt to insert anywhere available
+  int prevEnd = MIN_ADDR - 1;
+  int curStart = MIN_ADDR; 
+  uint leftmostAddr = MIN_ADDR; // initially minimum address
+  cprintf("leftmostaddr before calculation: %x\n", leftmostAddr);
+  // if array is empty
+  for (int i = 0; i < MAX_WMMAP_INFO; i++){
+    // at each iteration, prevEnd will hold the i-1->endAddr curStart will hold the ith startAddr
+    // if curStart - prevEnd > PGROUNDUP(length), then there is enough room to fit the block starting at prevEnd + 1
+
+    // if this pointer is null, we can assign it to prevEnd+1
+    if (p->arr[i]->valid == 0) {
+      leftmostAddr = prevEnd + 1;
+      break; 
+    }
+    curStart = p->arr[i]->start; // we know that ith element of array is nonnull
+    if (curStart - prevEnd > PGROUNDUP(newsize)){ // can we fit our mapping between the ith and i-1 mappings?
+      leftmostAddr = prevEnd + 1;
+    }
+    // increment prevEnd
+    prevEnd = p->arr[i]->end;
+  }
+  end = leftmostAddr + PGROUNDUP(newsize) - 1;
+  // TODO insert at leftmostAddr in our array of mappings
+  //cprintf("inserting at leftmostAddr: %x, end: %x\n", leftmostAddr, end);
+  uint insertAddr = insert_mapping(oldaddr, end - 1, old_flags, newsize, p->wmapinfo->total_mmaps, old_fd);
+  if (insertAddr == FAILED){
+    return FAILED;
+  }
+
+
+  return insertAddr;
 }
 
 int sys_getpgdirinfo(){
