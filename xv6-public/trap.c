@@ -112,7 +112,7 @@ trap(struct trapframe *tf)
         cprintf("mappages failed\n");          
         kfree(mem);
       }
-        // write to memory if not map anon
+        // read from memory if not map anon
       if ((mapping->flags & MAP_ANONYMOUS) == 0){
         struct file *f = p->ofile[mapping->fd];
         fileread(f, (char*) faultyAddr, PGSIZE);

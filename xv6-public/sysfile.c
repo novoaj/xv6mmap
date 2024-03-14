@@ -591,7 +591,6 @@ int remove_mapping(uint addr) {
       p->wmapinfo->length[i] = p->wmapinfo->length[i + 1];
       p->wmapinfo->leftmostLoadedAddr[i] = p->wmapinfo->leftmostLoadedAddr[i + 1];
       p->wmapinfo->n_loaded_pages[i] = p->wmapinfo->n_loaded_pages[i + 1];
-
     }
   }
   // Preforem left shit to fill the gap

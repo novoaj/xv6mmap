@@ -370,16 +370,16 @@ fork(void)
       }
     } else if (cur_mapping->flags & MAP_SHARED) {
       cprintf("map shared case in fork\n\n");
-      np->arr[i] = curproc->arr[i];
-      np->arr[i]->ref++;
+      // np->arr[i] = curproc->arr[i];
+      // np->arr[i]->ref++;
       // np->wmapinfo = curproc->wmapinfo;
-      // np->arr[i]->end = curproc->arr[i]->end;
-      // np->arr[i]->fd = curproc->arr[i]->fd;
-      // np->arr[i]->flags = curproc->arr[i]->flags;
-      // np->arr[i]->length = curproc->arr[i]->length;
-      // np->arr[i]->ref = curproc->arr[i]->ref;
-      // np->arr[i]->start = curproc->arr[i]->start;
-      // np->arr[i]->valid = curproc->arr[i]->valid;
+      np->arr[i]->end = curproc->arr[i]->end;
+      np->arr[i]->fd = curproc->arr[i]->fd;
+      np->arr[i]->flags = curproc->arr[i]->flags;
+      np->arr[i]->length = curproc->arr[i]->length;
+      np->arr[i]->ref = curproc->arr[i]->ref;
+      np->arr[i]->start = curproc->arr[i]->start;
+      np->arr[i]->valid = curproc->arr[i]->valid;
 
       np->wmapinfo->addr[i] = curproc->wmapinfo->addr[i];
       np->wmapinfo->leftmostLoadedAddr[i] = curproc->wmapinfo->leftmostLoadedAddr[i];
@@ -406,10 +406,12 @@ fork(void)
     }
   }
   for (int i = 0; i < MAX_WMMAP_INFO; i++){
-    cprintf("curproc: \nvalid: %d, pointer: %p, startaddr: %x, refcount: %d, length %d\n",curproc->arr[i]->valid, curproc->arr[i], curproc->arr[i]->start, curproc->arr[i]->ref, curproc->arr[i]->length);
+    cprintf("curproc: \n");
+    cprintf("valid: %d, pointer: %p, startaddr: %x, refcount: %d, length %d\n",curproc->arr[i]->valid, curproc->arr[i], curproc->arr[i]->start, curproc->arr[i]->ref, curproc->arr[i]->length);
   }
   for (int i = 0; i < MAX_WMMAP_INFO; i++){
-    cprintf("np: \nvalid: %d, pointer: %p, startaddr: %x, refcount: %d length: %d\n",np->arr[i]->valid, np->arr[i], np->arr[i]->start, np->arr[i]->ref, curproc->arr[i]->length);
+    cprintf("np: \n");
+    cprintf("valid: %d, pointer: %p, startaddr: %x, refcount: %d length: %d\n",np->arr[i]->valid, np->arr[i], np->arr[i]->start, np->arr[i]->ref, curproc->arr[i]->length);
   }
 
   pid = np->pid;
@@ -522,12 +524,13 @@ exit(void)
     }
   }
 
-  // free pointers in proc struct
+  // free pointers in proc struct, should changes in child be visible in parent? copy over info?
   kfree((char*)curproc->wmapinfo);
   for (int i = 0; i < MAX_WMMAP_INFO; i++){
-    if (curproc->arr[i]->ref == 1){ // free if this is the only ref
+    if (curproc->arr[i]->valid == 1 && curproc->arr[i]->ref == 1){ // free if this is the only ref
       kfree((char*)curproc->arr[i]);
     }
+    curproc->parent->arr[i]->ref -= 1;
   }
   
   cprintf("deallocing uvm...\n\n");
