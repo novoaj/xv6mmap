@@ -798,7 +798,7 @@ uint sys_wremap(){
     return FAILED;
   }
   // Checks that the address is allocated
-    struct proc* p = myproc();
+  struct proc* p = myproc();
   int mappingExists = 0;
   int location = 0;
   for (int i = 0; i < p->wmapinfo->total_mmaps; i++){
@@ -813,11 +813,11 @@ uint sys_wremap(){
   int old_fd = p->arr[location]->fd;
   // int old_ref = p->arr[location]->ref;
   if (mappingExists == 0) {
+    cprintf("mapping doesn't exist\n");
     return FAILED;
   }
   uint end = oldaddr + PGROUNDUP(newsize);
   if (p->arr[location + 1]->valid == 1 && (end < p->arr[location + 1]->start)) {
-  
     int x = remove_mapping(oldaddr);
     if (x != 1) {
       return FAILED;
@@ -830,6 +830,7 @@ uint sys_wremap(){
   }
   else if (p->arr[location + 1]->valid == 0) {
     if (end > MAX_ADDR){
+      cprintf("mapping wont fit - end: %x\n, end");
       return FAILED;
     }
     else {
@@ -846,10 +847,12 @@ uint sys_wremap(){
     }
   }
   else if (flag == 0){
+    cprintf("coudn't remap block at %x\n", oldaddr);
     return FAILED;
   }
   
   int x3 = remove_mapping(oldaddr);
+  cprintf("removing mapping before insert (remap)\n");
   if (x3 != 1){
     return FAILED;
   }
@@ -878,12 +881,15 @@ uint sys_wremap(){
   }
   end = leftmostAddr + PGROUNDUP(newsize) - 1;
   // TODO insert at leftmostAddr in our array of mappings
-  //cprintf("inserting at leftmostAddr: %x, end: %x\n", leftmostAddr, end);
-  uint insertAddr = insert_mapping(oldaddr, end - 1, old_flags, newsize, p->wmapinfo->total_mmaps, old_fd);
+  cprintf("inserting at leftmostAddr: %x, end: %x\n", leftmostAddr, end);
+  uint insertAddr = insert_mapping(leftmostAddr, end - 1, old_flags, newsize, p->wmapinfo->total_mmaps, old_fd);
   if (insertAddr == FAILED){
     return FAILED;
   }
-
+  cprintf("\n\nmem_block array after wremap: \n\n");
+  for (int i = 0; i < MAX_WMMAP_INFO; i++){
+    cprintf("valid: %d, pointer: %p, startaddr: %x, refcount: %d\n",p->arr[i]->valid, p->arr[i], p->arr[i]->start, p->arr[i]->ref);
+  }
 
   return insertAddr;
 }
